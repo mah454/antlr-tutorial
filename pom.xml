@@ -13,6 +13,7 @@
         <module>03-config</module>
         <module>04-sql</module>
         <module>05-clause</module>
+        <module>06-json-transform</module>
     </modules>
 
     <dependencies>
