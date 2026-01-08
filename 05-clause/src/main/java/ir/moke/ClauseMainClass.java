@@ -10,7 +10,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 public class ClauseMainClass {
     public static void main(String[] args) {
         // Example input
-        String inputText = "age > 25 or (name = ali or name=Hossein)";
+        String inputText = "age > 25 or (name = ali or name !~ Hossein)";
 
         // Step 1: Create a CharStream from input
         CharStream input = CharStreams.fromString(inputText);

@@ -38,7 +38,8 @@ operator
     | LT
     | GTE
     | LTE
-    | LIKE
+    | REG
+    | REGI
     ;
 
 /*
@@ -56,7 +57,8 @@ GT  : 'gt' | '>';
 LT  : 'lt' | '<';
 GTE : 'gte' | '>=';
 LTE : 'lte' | '<=';
-LIKE : 'like' | '~';
+REG : 'reg' | '~';
+REGI : 'regi' | '!~';
 
 // literals
 IDENTIFIER

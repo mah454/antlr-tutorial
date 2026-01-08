@@ -39,3 +39,5 @@ nbactions.xml
 nb-configuration.xml
 *.log
 tomcat*
+
+*/src/main/java/ir/moke/antlr4

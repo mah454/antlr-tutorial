@@ -63,13 +63,20 @@ public class EvalVisitor extends ClauseBaseVisitor<String> {
             case ">=", "gte" -> "$gte";
             case "<", "lt" -> "$lt";
             case "<=", "lte" -> "$lte";
-            case "~", "like" -> "$regex";
+            case "~", "reg", "!~", "regi" -> "$regex";
+
             default -> "$eq";
         };
 
-        return """
-                { "%s" : { %s : %s } }
-                """.formatted(field, mongoOp, value).trim();
+        if (op.equals("regi") || op.equals("!~")) {
+            return """
+                    { "%s" : { %s : %s , $options: "i" } }
+                    """.formatted(field, mongoOp, value).trim();
+        } else {
+            return """
+                    { "%s" : { %s : %s } }
+                    """.formatted(field, mongoOp, value).trim();
+        }
     }
 
     @Override

@@ -1,5 +1,6 @@
 #!/bin/bash
-set -x
+
+find . -iname antlr4 -type d | grep java | xargs rm -rf
 
 if [ ! -z $1 ]; then
   echo $1
