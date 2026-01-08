@@ -1,0 +1,80 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>ir.moke</groupId>
+    <artifactId>antlr-tutorial</artifactId>
+    <packaging>pom</packaging>
+    <version>0.1</version>
+    <name>antlr-tutorial</name>
+
+    <modules>
+        <module>01-hello</module>
+        <module>02-expr</module>
+        <module>03-config</module>
+        <module>04-sql</module>
+        <module>05-clause</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4</artifactId>
+            <version>4.13.2</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+                <configuration>
+                    <release>25</release>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.antlr</groupId>
+                    <artifactId>antlr4-maven-plugin</artifactId>
+                    <version>4.13.2</version>
+                    <configuration>
+                        <visitor>true</visitor>
+                        <listener>true</listener>
+                        <sourceDirectory>src/main/antlr4</sourceDirectory>
+                        <outputDirectory>src/main/java/ir/moke/antlr4</outputDirectory>
+                        <arguments>
+                            <argument>-package</argument>
+                            <argument>ir.moke.antlr4</argument>
+                        </arguments>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>antlr4</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.4.1</version>
+                    <configuration>
+                        <filesets>
+                            <fileset>
+                                <directory>src/main/java/ir/moke/antlr4</directory>
+                                <includes>
+                                    <include>**/*</include>
+                                </includes>
+                            </fileset>
+                        </filesets>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>
