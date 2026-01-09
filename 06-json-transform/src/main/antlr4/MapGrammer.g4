@@ -29,7 +29,6 @@ expr
     | STRING                  # stringExpr
     | NULL                    # nullExpr
     | path                    # pathExpr
-    | expr '?' expr ':' expr  # checkStatement
     ;
 
 // path = nested identifiers
