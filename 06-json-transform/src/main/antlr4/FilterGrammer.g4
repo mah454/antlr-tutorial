@@ -39,11 +39,16 @@ interpolation
     ;
 
 path
-    : IDENT ('.' IDENT)*
+    : pathSegment ('.' pathSegment)*
+    ;
+
+pathSegment
+    : IDENT ('[' ']')?
+    | ('[' ']').IDENT
     ;
 
 comparator
-    : '==' | '!=' | '>' | '>=' | '<' | '<='
+    : '==' | '!=' | '>' | '>=' | '<' | '<=' | '~' | '!~'
     ;
 
 /* Lexer rules specific to this grammar */

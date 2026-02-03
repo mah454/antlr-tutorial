@@ -2,18 +2,18 @@ package ir.moke;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.IntNode;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.node.*;
 import ir.moke.antlr4.FilterGrammerBaseVisitor;
 import ir.moke.antlr4.FilterGrammerParser;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
     private final ObjectMapper mapper = new ObjectMapper();
-    private final ArrayNode data;
+    private final JsonNode data;
 
-    public FilterEvalVisitor(ArrayNode data) {
+    public FilterEvalVisitor(JsonNode data) {
         this.data = data;
     }
 
@@ -38,21 +38,34 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
      * Apply a filter expression to the data
      */
     private void applyFilter(FilterGrammerParser.ExpressionContext expr) {
+
+        // root باید Object باشد
+        if (!data.isObject()) {
+            throw new IllegalStateException("Root must be an object");
+        }
+
+        // resolve first path segment manually: node[]
+        JsonNode nodeArray = data.get("node");
+
+        if (nodeArray == null || !nodeArray.isArray()) {
+            return;
+        }
+
         ArrayNode result = mapper.createArrayNode();
 
-        for (JsonNode node : data) {
-            if (evalExpression(expr, node)) {
-                result.add(node);
+        for (JsonNode item : nodeArray) {
+            if (evalExpression(expr, item)) {
+                result.add(item);
             }
         }
 
-        data.removeAll();
-        data.addAll(result);
+        ((ObjectNode) data).set("node", result);
     }
 
     /**
      * Evaluate any expression (logical or comparison)
      */
+
     private boolean evalExpression(FilterGrammerParser.ExpressionContext expr, JsonNode ctx) {
         // Parenthesized expression
         if (expr.expression().size() == 1) {
@@ -82,6 +95,26 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
         String op = cmp.comparator().getText();
 
+        if (left.isArray()) {
+            for (JsonNode item : left) {
+                if (compare(item, right, op)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if ("~".equals(op) && left.isArray()) {
+            if (left.isArray()) {
+                for (JsonNode item : left) {
+                    if (item.equals(right)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
         // Numeric comparison
         if (left.isNumber() && right.isNumber()) {
             double l = left.asDouble();
@@ -93,6 +126,7 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
                 case "<" -> l < r;
                 case ">=" -> l >= r;
                 case "<=" -> l <= r;
+                case "~" -> left.asText().contains(right.asText());
                 default -> false;
             };
         }
@@ -107,9 +141,36 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
             case "<" -> lText.compareTo(rText) < 0;
             case ">=" -> lText.compareTo(rText) >= 0;
             case "<=" -> lText.compareTo(rText) <= 0;
+            case "~" -> lText.contains(rText);
             default -> false;
         };
     }
+
+    private boolean compare(JsonNode left, JsonNode right, String op) {
+        if (left.isNumber() && right.isNumber()) {
+            double l = left.asDouble();
+            double r = right.asDouble();
+            return switch (op) {
+                case "==" -> l == r;
+                case "!=" -> l != r;
+                case ">" -> l > r;
+                case "<" -> l < r;
+                case ">=" -> l >= r;
+                case "<=" -> l <= r;
+                default -> false;
+            };
+        }
+
+        String lText = left.asText();
+        String rText = right.asText();
+        return switch (op) {
+            case "==" -> lText.equals(rText);
+            case "!=" -> !lText.equals(rText);
+            case "~" -> lText.contains(rText);
+            default -> false;
+        };
+    }
+
 
     /**
      * Resolve a value expression to a JsonNode
@@ -125,7 +186,15 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
             return NullNode.instance;
         }
         if (expr.path() != null) {
-            return resolvePath(expr.path(), ctx);
+            List<JsonNode> values = resolvePath(expr.path(), ctx);
+
+            if (values.size() == 1) {
+                return values.get(0);
+            }
+
+            ArrayNode arr = mapper.createArrayNode();
+            values.forEach(arr::add);
+            return arr;
         }
         return NullNode.instance;
     }
@@ -133,17 +202,32 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
     /**
      * Resolve a nested path like profile.contact.city
      */
-    private JsonNode resolvePath(FilterGrammerParser.PathContext path, JsonNode ctx) {
-        JsonNode current = ctx;
-        for (var id : path.IDENT()) {
-            if (current.has(id.getText())) {
-                current = current.get(id.getText());
-            } else {
-                return NullNode.instance;
+    private List<JsonNode> resolvePath(FilterGrammerParser.PathContext path, JsonNode ctx) {
+        List<JsonNode> currentNodes = List.of(ctx);
+
+        for (var segment : path.pathSegment()) {
+            List<JsonNode> nextNodes = new ArrayList<>();
+            String field = segment.IDENT().getText();
+            boolean isArray = segment.getChildCount() > 1; // has []
+
+            for (JsonNode node : currentNodes) {
+                if (!node.has(field)) continue;
+
+                JsonNode value = node.get(field);
+
+                if (isArray && value.isArray()) {
+                    value.forEach(nextNodes::add);
+                } else {
+                    nextNodes.add(value);
+                }
             }
+
+            currentNodes = nextNodes;
         }
-        return current;
+
+        return currentNodes;
     }
+
 
     /**
      * Remove quotes from a string literal

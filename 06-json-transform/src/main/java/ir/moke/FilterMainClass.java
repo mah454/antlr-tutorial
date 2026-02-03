@@ -3,6 +3,8 @@ package ir.moke;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import ir.moke.antlr4.FilterGrammerLexer;
+import ir.moke.antlr4.FilterGrammerParser;
 import ir.moke.antlr4.MapGrammerLexer;
 import ir.moke.antlr4.MapGrammerParser;
 import org.antlr.v4.runtime.CharStream;
@@ -59,56 +61,57 @@ public class FilterMainClass {
             ]
             """;
 
-    public static void main(String[] args) throws JsonProcessingException {
-        String input = """
-                map -> profile.age = profile.age * 2
-                """;
-
-        CharStream inputStream = CharStreams.fromString(input);
-        MapGrammerLexer lexer = new MapGrammerLexer(inputStream);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
-        MapGrammerParser parser = new MapGrammerParser(tokens);
-
-        MapGrammerParser.ProgramContext program = parser.program();
-        ArrayNode json = (ArrayNode) new ObjectMapper().readTree(jsonData);
-
-        MapEvalVisitor visitor = new MapEvalVisitor(json);
-        visitor.visit(program);
-
-        System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(json));
-    }
-
-
 //    public static void main(String[] args) throws JsonProcessingException {
-//        // Example input
-//        String inputText = "filter -> profile.age == 45 or (profile.contact.city == \"Eghlid\" or profile.contact.city == \"Tehran\")";
+//        String input = """
+//                map -> profile.age = profile.age * 2
+//                """;
 //
-//        // Step 1: Create a CharStream from input
-//        CharStream input = CharStreams.fromString(inputText);
-//
-//        // Step 2: Create a lexer
-//        FilterLexer lexer = new FilterLexer(input);
-//
-//        // Step 3: Tokenize input
+//        CharStream inputStream = CharStreams.fromString(input);
+//        MapGrammerLexer lexer = new MapGrammerLexer(inputStream);
 //        CommonTokenStream tokens = new CommonTokenStream(lexer);
+//        MapGrammerParser parser = new MapGrammerParser(tokens);
 //
-//        // Step 4: Create a parser
-//        FilterParser parser = new FilterParser(tokens);
-//
-//        FilterParser.ProgramContext program = parser.program();
-//
-//        // Print the parse tree
-//        System.out.println(program.toStringTree(parser));
-//
-//        // json to ArrayNode Object
+//        MapGrammerParser.ProgramContext program = parser.program();
 //        ArrayNode json = (ArrayNode) new ObjectMapper().readTree(jsonData);
 //
-//        // Run visitor
-//        FilterEvalVisitor visitor = new FilterEvalVisitor(json);
+//        MapEvalVisitor visitor = new MapEvalVisitor(json);
 //        visitor.visit(program);
 //
-//
-//        // Visitor
 //        System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(json));
 //    }
+
+
+    public static void main(String[] args) throws JsonProcessingException {
+        // Example input
+//        String inputText = "filter -> profile.age == 45 or (profile.contact.city == \"Eghlid\" or profile.contact.city == \"Tehran\")";
+        String inputText = "filter -> profile.age == 45";
+
+        // Step 1: Create a CharStream from input
+        CharStream input = CharStreams.fromString(inputText);
+
+        // Step 2: Create a lexer
+        FilterGrammerLexer lexer = new FilterGrammerLexer(input);
+
+        // Step 3: Tokenize input
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+
+        // Step 4: Create a parser
+        FilterGrammerParser parser = new FilterGrammerParser(tokens);
+
+        FilterGrammerParser.ProgramContext program = parser.program();
+
+        // Print the parse tree
+        System.out.println(program.toStringTree(parser));
+
+        // json to ArrayNode Object
+        ArrayNode json = (ArrayNode) new ObjectMapper().readTree(jsonData);
+
+        // Run visitor
+        FilterEvalVisitor visitor = new FilterEvalVisitor(json);
+        visitor.visit(program);
+
+
+        // Visitor
+        System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(json));
+    }
 }
