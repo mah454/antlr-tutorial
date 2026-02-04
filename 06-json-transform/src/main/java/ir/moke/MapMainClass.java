@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import ir.moke.antlr4.MapGrammerLexer;
 import ir.moke.antlr4.MapGrammerParser;
+import ir.moke.visitor.MapEvalVisitor;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -19,7 +20,6 @@ public class MapMainClass {
                   "name": "Ali",
                   "family": "Mohammadi",
                   "age": 45,
-                  "address": "Tehran",
                   "account" : 9287311,
                   "contact": {
                     "city": "Tehran",
@@ -34,7 +34,6 @@ public class MapMainClass {
                   "name": "Mahdi",
                   "family": "Sheikh Hosseini",
                   "age": 21,
-                  "address": "Pardis",
                   "account" : 12456789794,
                   "contact": {
                     "city": "Pardis",
@@ -49,7 +48,7 @@ public class MapMainClass {
                   "name": "Hossein",
                   "family": "Javadi",
                   "age": 33,
-                  "address": "Shiraz",
+                  "account" : 11111111111111,
                   "contact": {
                     "city": "Eghlid",
                     "zip": 4444
