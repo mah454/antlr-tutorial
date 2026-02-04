@@ -31,10 +31,7 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitStatement(FilterGrammerParser.StatementContext ctx) {
-        String op = ctx.operation().getText();
-        if ("filter".equals(op)) {
-            applyFilter(ctx.expression());
-        }
+        applyFilter(ctx.expression());
         return null;
     }
 
