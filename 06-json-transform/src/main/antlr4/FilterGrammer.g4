@@ -1,18 +1,13 @@
-// FilterGrammer.g4
 grammar FilterGrammer;
 
-import Common;  // import lexer tokens
+import Common;
 
 program
     : statement* EOF
     ;
 
 statement
-    : operation '->' expression
-    ;
-
-operation
-    : FILTER
+    : FILTER '->' expression
     ;
 
 expression
@@ -46,5 +41,4 @@ comparator
     : '==' | '!=' | '>' | '>=' | '<' | '<=' | '~' | '!~'
     ;
 
-/* Lexer rules specific to this grammar */
 FILTER : 'filter';
