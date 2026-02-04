@@ -31,11 +31,6 @@ valueExpr
     | NUMBER
     | NULL
     | path
-    | interpolation
-    ;
-
-interpolation
-    : '${' path '}' (('+' | '-') NUMBER)?
     ;
 
 path
