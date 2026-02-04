@@ -29,7 +29,7 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitAssignment(MapGrammerParser.AssignmentContext ctx) {
-        String fieldName = ctx.path().IDENT(ctx.path().IDENT().size() - 1).getText();
+        String fieldName = ctx.path().pathSegment(ctx.path().pathSegment().size() - 1).getText();
 
         for (JsonNode node : data) {
             ObjectNode target = resolveScope(node, ctx.path());
@@ -111,7 +111,7 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
      */
     private JsonNode resolvePath(MapGrammerParser.PathContext path, JsonNode ctx) {
         JsonNode current = ctx;
-        for (var id : path.IDENT()) {
+        for (var id : path.pathSegment()) {
             if (current.has(id.getText())) {
                 current = current.get(id.getText());
             } else {
@@ -125,11 +125,11 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
      * Resolve target ObjectNode for assignment
      */
     private ObjectNode resolveScope(JsonNode root, MapGrammerParser.PathContext path) {
-        if (path.IDENT().size() == 1) return (ObjectNode) root;
+        if (path.pathSegment().size() == 1) return (ObjectNode) root;
 
         JsonNode current = root;
-        for (int i = 0; i < path.IDENT().size() - 1; i++) {
-            current = current.get(path.IDENT(i).getText());
+        for (int i = 0; i < path.pathSegment().size() - 1; i++) {
+            current = current.get(path.pathSegment(i).getText());
             if (current == null || !current.isObject()) return null;
         }
         return (ObjectNode) current;

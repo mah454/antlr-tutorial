@@ -31,10 +31,15 @@ expr
     | path                    # pathExpr
     ;
 
-// path = nested identifiers
 path
-    : IDENT ('.' IDENT)*
+    : pathSegment ('.' pathSegment)*
     ;
+
+pathSegment
+    : IDENT ('[' ']')?
+    | ('[' ']').IDENT
+    ;
+
 
 /* Lexer rules */
 MAP    : 'map';
