@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import ir.moke.antlr4.FilterGrammerLexer;
 import ir.moke.antlr4.FilterGrammerParser;
-import ir.moke.antlr4.MapGrammerLexer;
-import ir.moke.antlr4.MapGrammerParser;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -21,7 +19,6 @@ public class FilterMainClass {
                   "name": "Ali",
                   "family": "Mohammadi",
                   "age": 45,
-                  "address": "Tehran",
                   "account" : 9287311,
                   "contact": {
                     "city": "Tehran",
@@ -36,7 +33,6 @@ public class FilterMainClass {
                   "name": "Mahdi",
                   "family": "Sheikh Hosseini",
                   "age": 21,
-                  "address": "Pardis",
                   "account" : 12456789794,
                   "contact": {
                     "city": "Pardis",
@@ -51,7 +47,7 @@ public class FilterMainClass {
                   "name": "Hossein",
                   "family": "Javadi",
                   "age": 33,
-                  "address": "Shiraz",
+                  "account" : 11111111111111,
                   "contact": {
                     "city": "Eghlid",
                     "zip": 4444
@@ -61,31 +57,11 @@ public class FilterMainClass {
             ]
             """;
 
-//    public static void main(String[] args) throws JsonProcessingException {
-//        String input = """
-//                map -> profile.age = profile.age * 2
-//                """;
-//
-//        CharStream inputStream = CharStreams.fromString(input);
-//        MapGrammerLexer lexer = new MapGrammerLexer(inputStream);
-//        CommonTokenStream tokens = new CommonTokenStream(lexer);
-//        MapGrammerParser parser = new MapGrammerParser(tokens);
-//
-//        MapGrammerParser.ProgramContext program = parser.program();
-//        ArrayNode json = (ArrayNode) new ObjectMapper().readTree(jsonData);
-//
-//        MapEvalVisitor visitor = new MapEvalVisitor(json);
-//        visitor.visit(program);
-//
-//        System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(json));
-//    }
-
-
     public static void main(String[] args) throws JsonProcessingException {
         // Example input
-//        String inputText = "filter -> profile.age == 45 or (profile.contact.city == \"Eghlid\" or profile.contact.city == \"Tehran\")";
-        String inputText = "filter -> profile.age == 45";
-
+        String inputText = "filter -> profile.age == 45 or (profile.contact.city == \"Eghlid\" or profile.contact.city == \"Pardis\")";
+//        String inputText = "filter -> profile.age == 45 or profile.age == 33";
+        System.out.println(inputText);
         // Step 1: Create a CharStream from input
         CharStream input = CharStreams.fromString(inputText);
 

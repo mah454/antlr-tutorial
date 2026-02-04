@@ -2,12 +2,16 @@ package ir.moke;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.*;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import ir.moke.antlr4.FilterGrammerBaseVisitor;
 import ir.moke.antlr4.FilterGrammerParser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
     private final ObjectMapper mapper = new ObjectMapper();
@@ -34,204 +38,136 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         return null;
     }
 
-    /**
-     * Apply a filter expression to the data
-     */
-    private void applyFilter(FilterGrammerParser.ExpressionContext expr) {
+    private void applyFilter(FilterGrammerParser.ExpressionContext ctx) {
+        if (data.isObject()) throw new IllegalArgumentException("Json node should be array");
 
-        // root باید Object باشد
-        if (!data.isObject()) {
-            throw new IllegalStateException("Root must be an object");
+        ArrayNode arr = (ArrayNode) data;
+        if (arr.isEmpty()) return;
+
+        ArrayNode arrayNode = mapper.createArrayNode();
+
+        for (JsonNode item : arr) {
+            boolean isTrue = evalExpression(item, ctx);
+            if (isTrue) arrayNode.add(item);
         }
 
-        // resolve first path segment manually: node[]
-        JsonNode nodeArray = data.get("node");
-
-        if (nodeArray == null || !nodeArray.isArray()) {
-            return;
-        }
-
-        ArrayNode result = mapper.createArrayNode();
-
-        for (JsonNode item : nodeArray) {
-            if (evalExpression(expr, item)) {
-                result.add(item);
-            }
-        }
-
-        ((ObjectNode) data).set("node", result);
+        ((ArrayNode) data).removeAll();
+        ((ArrayNode) data).addAll(arrayNode);
     }
 
-    /**
-     * Evaluate any expression (logical or comparison)
-     */
-
-    private boolean evalExpression(FilterGrammerParser.ExpressionContext expr, JsonNode ctx) {
-        // Parenthesized expression
-        if (expr.expression().size() == 1) {
-            return evalExpression(expr.expression(0), ctx);
+    private boolean evalExpression(JsonNode jsonNode, FilterGrammerParser.ExpressionContext ctx) {
+        if (ctx.expression().size() == 1) {
+            return evalExpression(jsonNode, ctx.expression(0));
+        } else if (ctx.AND() != null) {
+            return evalExpression(jsonNode, ctx.expression(0)) && evalExpression(jsonNode, ctx.expression(1));
+        } else if (ctx.OR() != null) {
+            return evalExpression(jsonNode, ctx.expression(0)) || evalExpression(jsonNode, ctx.expression(1));
+        } else {
+            return evalComparison(jsonNode, ctx.comparison());
         }
-
-        // Logical expressions
-        if (expr.AND() != null) {
-            return evalExpression(expr.expression(0), ctx)
-                    && evalExpression(expr.expression(1), ctx);
-        }
-        if (expr.OR() != null) {
-            return evalExpression(expr.expression(0), ctx)
-                    || evalExpression(expr.expression(1), ctx);
-        }
-
-        // Comparison
-        return evalComparison(expr.comparison(), ctx);
     }
 
-    /**
-     * Evaluate a comparison
-     */
-    private boolean evalComparison(FilterGrammerParser.ComparisonContext cmp, JsonNode ctx) {
-        JsonNode left = resolveValue(cmp.valueExpr(0), ctx);
-        JsonNode right = resolveValue(cmp.valueExpr(1), ctx);
+    private boolean evalComparison(JsonNode jsonNode, FilterGrammerParser.ComparisonContext comparison) {
+        JsonNode leftNode = readValue(jsonNode, comparison.valueExpr(0));
+        JsonNode rightNode = readValue(jsonNode, comparison.valueExpr(1));
+        String comparator = comparison.comparator().getText();
 
-        String op = cmp.comparator().getText();
-
-        if (left.isArray()) {
-            for (JsonNode item : left) {
-                if (compare(item, right, op)) {
-                    return true;
+        if (leftNode.isArray()) {
+            for (JsonNode item : leftNode) {
+                if (item.isNumber()) {
+                    return checkNumeric(leftNode, rightNode, comparator);
+                } else {
+                    return checkString(leftNode, rightNode, comparator);
                 }
             }
-            return false;
-        }
-
-        if ("~".equals(op) && left.isArray()) {
-            if (left.isArray()) {
-                for (JsonNode item : left) {
-                    if (item.equals(right)) {
-                        return true;
-                    }
-                }
-                return false;
+        } else if ("~".equals(comparator) && leftNode.isArray()) {
+            for (JsonNode item : leftNode) {
+                return item.equals(rightNode);
+            }
+        } else {
+            if (leftNode.isNumber()) {
+                return checkNumeric(leftNode, rightNode, comparator);
+            } else {
+                return checkString(leftNode, rightNode, comparator);
             }
         }
 
-        // Numeric comparison
-        if (left.isNumber() && right.isNumber()) {
-            double l = left.asDouble();
-            double r = right.asDouble();
-            return switch (op) {
-                case "==" -> l == r;
-                case "!=" -> l != r;
-                case ">" -> l > r;
-                case "<" -> l < r;
-                case ">=" -> l >= r;
-                case "<=" -> l <= r;
-                case "~" -> left.asText().contains(right.asText());
-                default -> false;
-            };
-        }
+        return false;
+    }
 
-        // String comparison
-        String lText = left.asText();
-        String rText = right.asText();
-        return switch (op) {
-            case "==" -> lText.equals(rText);
-            case "!=" -> !lText.equals(rText);
+    private static boolean checkString(JsonNode leftNode, JsonNode rightNode, String comparator) {
+        String lText = leftNode.textValue();
+        String rText = rightNode.textValue();
+        return switch (comparator) {
+            case "==" -> Objects.equals(lText, rText);
+            case "!=" -> !Objects.equals(lText, rText);
             case ">" -> lText.compareTo(rText) > 0;
-            case "<" -> lText.compareTo(rText) < 0;
             case ">=" -> lText.compareTo(rText) >= 0;
+            case "<" -> lText.compareTo(rText) < 0;
             case "<=" -> lText.compareTo(rText) <= 0;
             case "~" -> lText.contains(rText);
+            case "!~" -> !lText.contains(rText);
             default -> false;
         };
     }
 
-    private boolean compare(JsonNode left, JsonNode right, String op) {
-        if (left.isNumber() && right.isNumber()) {
-            double l = left.asDouble();
-            double r = right.asDouble();
-            return switch (op) {
-                case "==" -> l == r;
-                case "!=" -> l != r;
-                case ">" -> l > r;
-                case "<" -> l < r;
-                case ">=" -> l >= r;
-                case "<=" -> l <= r;
-                default -> false;
-            };
-        }
-
-        String lText = left.asText();
-        String rText = right.asText();
-        return switch (op) {
-            case "==" -> lText.equals(rText);
-            case "!=" -> !lText.equals(rText);
-            case "~" -> lText.contains(rText);
+    private static boolean checkNumeric(JsonNode leftNode, JsonNode rightNode, String comparator) {
+        double l = leftNode.doubleValue();
+        double r = rightNode.doubleValue();
+        return switch (comparator) {
+            case "==" -> l == r;
+            case "!=" -> l != r;
+            case ">" -> l > r;
+            case ">=" -> l >= r;
+            case "<" -> l < r;
+            case "<=" -> l <= r;
+            case "~" -> leftNode.textValue().contains(rightNode.textValue());
+            case "!~" -> !leftNode.textValue().contains(rightNode.textValue());
             default -> false;
         };
     }
 
-
-    /**
-     * Resolve a value expression to a JsonNode
-     */
-    private JsonNode resolveValue(FilterGrammerParser.ValueExprContext expr, JsonNode ctx) {
-        if (expr.NUMBER() != null) {
-            return new IntNode(Integer.parseInt(expr.NUMBER().getText()));
-        }
-        if (expr.STRING() != null) {
-            return new TextNode(stripQuotes(expr.STRING().getText()));
-        }
-        if (expr.NULL() != null) {
-            return NullNode.instance;
-        }
-        if (expr.path() != null) {
-            List<JsonNode> values = resolvePath(expr.path(), ctx);
-
-            if (values.size() == 1) {
-                return values.get(0);
+    private JsonNode readValue(JsonNode node, FilterGrammerParser.ValueExprContext ctx) {
+        if (ctx.NUMBER() != null) return new IntNode(Integer.parseInt(ctx.NUMBER().getText()));
+        if (ctx.STRING() != null) return new TextNode(stripQuotes(ctx.STRING().getText()));
+        if (ctx.NULL() != null) return NullNode.getInstance();
+        if (ctx.path() != null) {
+            List<JsonNode> jsonNodes = resolvePath(node, ctx.path());
+            if (jsonNodes.size() == 1) {
+                return jsonNodes.getFirst();
+            } else {
+                ArrayNode arrayNode = mapper.createArrayNode();
+                jsonNodes.forEach(arrayNode::add);
+                return arrayNode;
             }
-
-            ArrayNode arr = mapper.createArrayNode();
-            values.forEach(arr::add);
-            return arr;
         }
-        return NullNode.instance;
+        return NullNode.getInstance();
     }
 
-    /**
-     * Resolve a nested path like profile.contact.city
-     */
-    private List<JsonNode> resolvePath(FilterGrammerParser.PathContext path, JsonNode ctx) {
-        List<JsonNode> currentNodes = List.of(ctx);
+    private List<JsonNode> resolvePath(JsonNode jsonNode, FilterGrammerParser.PathContext ctx) {
+        List<JsonNode> currentNodes = List.of(jsonNode);
 
-        for (var segment : path.pathSegment()) {
-            List<JsonNode> nextNodes = new ArrayList<>();
+        for (FilterGrammerParser.PathSegmentContext segment : ctx.pathSegment()) {
             String field = segment.IDENT().getText();
+            List<JsonNode> foundedItems = new ArrayList<>();
             boolean isArray = segment.getChildCount() > 1; // has []
-
             for (JsonNode node : currentNodes) {
                 if (!node.has(field)) continue;
-
                 JsonNode value = node.get(field);
-
                 if (isArray && value.isArray()) {
-                    value.forEach(nextNodes::add);
-                } else {
-                    nextNodes.add(value);
+                    value.forEach(foundedItems::add);
                 }
+                foundedItems.add(value);
             }
-
-            currentNodes = nextNodes;
+            currentNodes = foundedItems;
         }
 
         return currentNodes;
     }
 
-
     /**
-     * Remove quotes from a string literal
-     */
+     * remove double quotes
+     * */
     private String stripQuotes(String s) {
         return s.substring(1, s.length() - 1);
     }
