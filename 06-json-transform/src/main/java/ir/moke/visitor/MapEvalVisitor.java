@@ -23,7 +23,7 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitStatement(MapGrammerParser.StatementContext ctx) {
-        visit(ctx.assignment());
+        visitAssignment(ctx.assignment());
         return null;
     }
 
