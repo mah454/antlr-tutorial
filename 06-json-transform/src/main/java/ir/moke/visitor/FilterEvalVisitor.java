@@ -44,7 +44,7 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         ArrayNode arrayNode = mapper.createArrayNode();
 
         for (JsonNode item : arr) {
-            boolean isTrue = evalExpression(item, ctx);
+            boolean isTrue = evalExpression(ctx, item);
             if (isTrue) arrayNode.add(item);
         }
 
@@ -52,22 +52,22 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         ((ArrayNode) data).addAll(arrayNode);
     }
 
-    private boolean evalExpression(JsonNode jsonNode, FilterGrammerParser.ExpressionContext ctx) {
+    private boolean evalExpression(FilterGrammerParser.ExpressionContext ctx, JsonNode jsonNode) {
         if (ctx.expression().size() == 1) {
-            return evalExpression(jsonNode, ctx.expression(0));
+            return evalExpression(ctx.expression(0), jsonNode);
         } else if (ctx.AND() != null) {
-            return evalExpression(jsonNode, ctx.expression(0)) && evalExpression(jsonNode, ctx.expression(1));
+            return evalExpression(ctx.expression(0), jsonNode) && evalExpression(ctx.expression(1), jsonNode);
         } else if (ctx.OR() != null) {
-            return evalExpression(jsonNode, ctx.expression(0)) || evalExpression(jsonNode, ctx.expression(1));
+            return evalExpression(ctx.expression(0), jsonNode) || evalExpression(ctx.expression(1), jsonNode);
         } else {
-            return evalComparison(jsonNode, ctx.comparison());
+            return evalComparison(ctx.comparison(), jsonNode);
         }
     }
 
-    private boolean evalComparison(JsonNode jsonNode, FilterGrammerParser.ComparisonContext comparison) {
-        JsonNode leftNode = readValue(jsonNode, comparison.valueExpr(0));
-        JsonNode rightNode = readValue(jsonNode, comparison.valueExpr(1));
-        String comparator = comparison.comparator().getText();
+    private boolean evalComparison(FilterGrammerParser.ComparisonContext ctx, JsonNode jsonNode) {
+        JsonNode leftNode = readValue(ctx.valueExpr(0), jsonNode);
+        JsonNode rightNode = readValue(ctx.valueExpr(1), jsonNode);
+        String comparator = ctx.comparator().getText();
 
         if (leftNode.isArray()) {
             for (JsonNode item : leftNode) {
@@ -124,12 +124,12 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         };
     }
 
-    private JsonNode readValue(JsonNode node, FilterGrammerParser.ValueExprContext ctx) {
+    private JsonNode readValue(FilterGrammerParser.ValueExprContext ctx, JsonNode node) {
         if (ctx.NUMBER() != null) return new IntNode(Integer.parseInt(ctx.NUMBER().getText()));
         if (ctx.STRING() != null) return new TextNode(stripQuotes(ctx.STRING().getText()));
         if (ctx.NULL() != null) return NullNode.getInstance();
         if (ctx.path() != null) {
-            List<JsonNode> jsonNodes = resolvePath(node, ctx.path());
+            List<JsonNode> jsonNodes = resolvePath(ctx.path(), node);
             if (jsonNodes.size() == 1) {
                 return jsonNodes.getFirst();
             } else {
@@ -141,7 +141,7 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         return NullNode.getInstance();
     }
 
-    private List<JsonNode> resolvePath(JsonNode jsonNode, FilterGrammerParser.PathContext ctx) {
+    private List<JsonNode> resolvePath(FilterGrammerParser.PathContext ctx, JsonNode jsonNode) {
         List<JsonNode> currentNodes = List.of(jsonNode);
 
         for (FilterGrammerParser.PathSegmentContext segment : ctx.pathSegment()) {
@@ -164,7 +164,8 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
     /**
      * remove double quotes
-     * */
+     *
+     */
     private String stripQuotes(String s) {
         return s.substring(1, s.length() - 1);
     }

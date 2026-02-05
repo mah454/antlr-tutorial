@@ -1,15 +1,18 @@
 package ir.moke.visitor;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.*;
+import com.fasterxml.jackson.databind.node.DoubleNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import ir.moke.antlr4.MapGrammerBaseVisitor;
 import ir.moke.antlr4.MapGrammerParser;
 
 public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
 
-    private final ArrayNode data;
+    private final JsonNode data;
 
-    public MapEvalVisitor(ArrayNode data) {
+    public MapEvalVisitor(JsonNode data) {
         this.data = data;
     }
 
@@ -23,95 +26,72 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitStatement(MapGrammerParser.StatementContext ctx) {
-        visitAssignment(ctx.assignment());
+        visit(ctx.assignment());
         return null;
     }
 
     @Override
     public Void visitAssignment(MapGrammerParser.AssignmentContext ctx) {
-        String fieldName = ctx.path().pathSegment(ctx.path().pathSegment().size() - 1).getText();
-
-        for (JsonNode node : data) {
-            ObjectNode target = resolveScope(node, ctx.path());
-            if (target == null) continue;
-
-            JsonNode value = evalExpr(ctx.expr(), node);
-            target.set(fieldName, value);
+        if (data.isObject()) {
+            applyAssignment(ctx, data);
+        } else if (data.isArray()) {
+            for (JsonNode item : data) {
+                applyAssignment(ctx, item);
+            }
         }
         return null;
     }
 
-    /**
-     * Evaluate expression recursively based on subclass
-     */
-    private JsonNode evalExpr(MapGrammerParser.ExprContext ctx, JsonNode jsonCtx) {
-        if (ctx instanceof MapGrammerParser.NumberExprContext numberCtx) {
-            return new DoubleNode(Double.parseDouble(numberCtx.NUMBER().getText()));
-        }
+    private void applyAssignment(MapGrammerParser.AssignmentContext ctx, JsonNode node) {
+        String fieldName = ctx.path().pathSegment(ctx.path().pathSegment().size() - 1).getText();
+        ObjectNode target = resolveTargetNode(ctx.path(), node);
+        if (target == null) return;
 
-        if (ctx instanceof MapGrammerParser.StringExprContext stringCtx) {
-            return new TextNode(stripQuotes(stringCtx.STRING().getText()));
-        }
+        JsonNode value = evalExpr(ctx.expr(), node);
+        target.set(fieldName, value);
+    }
 
+    private JsonNode evalExpr(MapGrammerParser.ExprContext ctx, JsonNode rootNode) {
         if (ctx instanceof MapGrammerParser.NullExprContext) {
-            return NullNode.instance;
-        }
+            return NullNode.getInstance();
+        } else if (ctx instanceof MapGrammerParser.StringExprContext strCtx) {
+            return new TextNode(stripQuotes(strCtx.STRING().getText()));
+        } else if (ctx instanceof MapGrammerParser.NumberExprContext numCtx) {
+            return new DoubleNode(Double.parseDouble(numCtx.NUMBER().getText()));
+        } else if (ctx instanceof MapGrammerParser.PathExprContext pathCtx) {
+            return resolvePath(pathCtx.path(), rootNode);
+        } else if (ctx instanceof MapGrammerParser.ParenExprContext parentCtx) {
+            return evalExpr(parentCtx.expr(), rootNode);
+        } else if (ctx instanceof MapGrammerParser.MathExprContext mathCtx) {
+            JsonNode leftNode = evalExpr(mathCtx.expr(0), rootNode);
+            JsonNode rightNode = evalExpr(mathCtx.expr(1), rootNode);
+            String op = mathCtx.mathOperation().getText();
 
-        if (ctx instanceof MapGrammerParser.PathExprContext pathCtx) {
-            return resolvePath(pathCtx.path(), jsonCtx);
-        }
-
-        if (ctx instanceof MapGrammerParser.ParenExprContext parenCtx) {
-            return evalExpr(parenCtx.expr(), jsonCtx);
-        }
-
-        if (ctx instanceof MapGrammerParser.MulDivExprContext mdCtx) {
-            JsonNode left = evalExpr(mdCtx.expr(0), jsonCtx);
-            JsonNode right = evalExpr(mdCtx.expr(1), jsonCtx);
-            double l = left.isNumber() ? left.asDouble() : 0;
-            double r = right.isNumber() ? right.asDouble() : 0;
-            String op = mdCtx.getChild(1).getText();
-            return switch (op) {
-                case "*" -> new DoubleNode(l * r);
-                case "/" -> new DoubleNode(l / r);
-                default -> NullNode.instance;
-            };
-        }
-
-        if (ctx instanceof MapGrammerParser.AddSubExprContext asCtx) {
-            JsonNode left = evalExpr(asCtx.expr(0), jsonCtx);
-            JsonNode right = evalExpr(asCtx.expr(1), jsonCtx);
-            String op = asCtx.getChild(1).getText();
-
-            if (op.equals("+") && (left.isTextual() || right.isTextual())) {
-                return new TextNode(left.asText() + right.asText());
+            if (op.equals("+") && leftNode.isTextual() && rightNode.isTextual()) {
+                return new TextNode(leftNode.asText() + rightNode.asText());
             }
 
-            double l = left.isNumber() ? left.asDouble() : 0;
-            double r = right.isNumber() ? right.asDouble() : 0;
+            double l = leftNode.isNumber() ? leftNode.asDouble() : 0;
+            double r = rightNode.isNumber() ? rightNode.asDouble() : 0;
 
             return switch (op) {
                 case "+" -> new DoubleNode(l + r);
                 case "-" -> new DoubleNode(l - r);
-                default -> NullNode.instance;
+                case "*" -> new DoubleNode(l * r);
+                case "/" -> new DoubleNode(l / r);
+                default -> NullNode.getInstance();
             };
+        } else if (ctx instanceof MapGrammerParser.ConcatExprContext concatCtx) {
+            String l = evalExpr(concatCtx.expr(0),rootNode).asText();
+            String r = evalExpr(concatCtx.expr(1),rootNode).asText();
+            return new TextNode(l + r);
         }
-
-        if (ctx instanceof MapGrammerParser.ConcatExprContext concatCtx) {
-            JsonNode left = evalExpr(concatCtx.expr(0), jsonCtx);
-            JsonNode right = evalExpr(concatCtx.expr(1), jsonCtx);
-            return new TextNode(left.asText() + right.asText());
-        }
-
-        return NullNode.instance;
+        return NullNode.getInstance();
     }
 
-    /**
-     * Resolve a path to value relative to a node
-     */
-    private JsonNode resolvePath(MapGrammerParser.PathContext path, JsonNode ctx) {
-        JsonNode current = ctx;
-        for (var id : path.pathSegment()) {
+    private JsonNode resolvePath(MapGrammerParser.PathContext ctx, JsonNode rootNode) {
+        JsonNode current = rootNode;
+        for (var id : ctx.pathSegment()) {
             if (current.has(id.getText())) {
                 current = current.get(id.getText());
             } else {
@@ -121,20 +101,23 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
         return current;
     }
 
-    /**
-     * Resolve target ObjectNode for assignment
-     */
-    private ObjectNode resolveScope(JsonNode root, MapGrammerParser.PathContext path) {
-        if (path.pathSegment().size() == 1) return (ObjectNode) root;
+    private ObjectNode resolveTargetNode(MapGrammerParser.PathContext ctx, JsonNode rootNode) {
+        if (ctx.pathSegment().size() == 1) return (ObjectNode) rootNode;
 
-        JsonNode current = root;
-        for (int i = 0; i < path.pathSegment().size() - 1; i++) {
-            current = current.get(path.pathSegment(i).getText());
-            if (current == null || !current.isObject()) return null;
+        JsonNode currentNode = rootNode;
+        for (int i = 0; i < ctx.pathSegment().size() - 1; i++) {
+            String field = ctx.pathSegment(i).getText();
+            currentNode = currentNode.get(field);
+            if (currentNode == null) return null;
         }
-        return (ObjectNode) current;
+
+        return (ObjectNode) currentNode;
     }
 
+    /**
+     * remove double quotes
+     *
+     */
     private String stripQuotes(String s) {
         return s.substring(1, s.length() - 1);
     }

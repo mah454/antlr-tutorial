@@ -1,8 +1,8 @@
 package ir.moke;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import ir.moke.antlr4.MapGrammerLexer;
 import ir.moke.antlr4.MapGrammerParser;
 import ir.moke.visitor.MapEvalVisitor;
@@ -59,13 +59,10 @@ public class MapMainClass {
             """;
 
     public static void main(String[] args) throws JsonProcessingException {
-        String input = """
-                map -> profile.age = profile.age * 2
-                map -> profile.name = "aliiii"
-                map -> profile.contact.fullName = profile.name + " " + profile.family
-                map -> profile.name = null
-                map -> profile.family = null
-                """;
+//        String input = "map -> profile.name = \"jafar\"";
+//        String input = "map -> profile.age = profile.age * 2";
+//        String input = "map -> profile.name = null";
+        String input = "map -> profile.contact.fullName = profile.name + \" \" + profile.family";
 
         CharStream inputStream = CharStreams.fromString(input);
         MapGrammerLexer lexer = new MapGrammerLexer(inputStream);
@@ -73,7 +70,7 @@ public class MapMainClass {
         MapGrammerParser parser = new MapGrammerParser(tokens);
 
         MapGrammerParser.ProgramContext program = parser.program();
-        ArrayNode json = (ArrayNode) new ObjectMapper().readTree(jsonData);
+        JsonNode json = new ObjectMapper().readTree(jsonData);
 
         MapEvalVisitor visitor = new MapEvalVisitor(json);
         visitor.visit(program);

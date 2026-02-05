@@ -15,16 +15,13 @@ assignment
     ;
 
 expr
-    : expr '+' expr           # concatExpr        // string concatenation
-    | expr '*' expr           # mulDivExpr        // multiplication
-    | expr '/' expr           # mulDivExpr
-    | expr '-' expr           # addSubExpr
-    | expr '+' expr           # addSubExpr
-    | '(' expr ')'            # parenExpr
-    | NUMBER                  # numberExpr
-    | STRING                  # stringExpr
-    | NULL                    # nullExpr
-    | path                    # pathExpr
+    : expr '+' expr              # concatExpr        // string concatenation
+    | expr mathOperation expr    # mathExpr          // math operation
+    | '(' expr ')'               # parenExpr
+    | NUMBER                     # numberExpr
+    | STRING                     # stringExpr
+    | NULL                       # nullExpr
+    | path                       # pathExpr
     ;
 
 path
@@ -34,6 +31,10 @@ path
 pathSegment
     : IDENT ('[' ']')?
     | ('[' ']').IDENT
+    ;
+
+mathOperation
+    : '+' | '-' | '*' | '/'
     ;
 
 MAP    : 'map';
