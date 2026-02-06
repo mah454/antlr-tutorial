@@ -8,6 +8,10 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import ir.moke.antlr4.MapGrammerBaseVisitor;
 import ir.moke.antlr4.MapGrammerParser;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
 public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
 
     private final JsonNode data;
@@ -42,13 +46,24 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
         return null;
     }
 
-    private void applyAssignment(MapGrammerParser.AssignmentContext ctx, JsonNode node) {
-        String fieldName = ctx.path().pathSegment(ctx.path().pathSegment().size() - 1).getText();
-        ObjectNode target = resolveTargetNode(ctx.path(), node);
-        if (target == null) return;
+    private void applyAssignment(MapGrammerParser.AssignmentContext ctx, JsonNode root) {
+        List<ObjectNode> targets = resolveTargetNodes(ctx.path(), root);
+        String fieldName = lastSegmentName(ctx.path());
 
-        JsonNode value = evalExpr(ctx.expr(), node);
-        target.set(fieldName, value);
+        for (ObjectNode target : targets) {
+            JsonNode value = evalExpr(ctx.expr(), root);
+
+            if (value.isNull()) {
+                target.remove(fieldName);
+            } else {
+                target.set(fieldName, value.deepCopy());
+            }
+        }
+    }
+
+    private String lastSegmentName(MapGrammerParser.PathContext ctx) {
+        MapGrammerParser.PathSegmentContext seg = ctx.pathSegment(ctx.pathSegment().size() - 1);
+        return seg.IDENT().getText();
     }
 
     private JsonNode evalExpr(MapGrammerParser.ExprContext ctx, JsonNode rootNode) {
@@ -82,9 +97,12 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
                 default -> NullNode.getInstance();
             };
         } else if (ctx instanceof MapGrammerParser.ConcatExprContext concatCtx) {
-            String l = evalExpr(concatCtx.expr(0),rootNode).asText();
-            String r = evalExpr(concatCtx.expr(1),rootNode).asText();
-            return new TextNode(l + r);
+            JsonNode leftNode = evalExpr(concatCtx.expr(0), rootNode);
+            JsonNode rightNode = evalExpr(concatCtx.expr(1), rootNode);
+            String l = leftNode.isNull() ? "" : leftNode.asText();
+            String r = rightNode.isNull() ? "" : rightNode.asText();
+            if (l == null && r == null) return NullNode.getInstance();
+            return new TextNode((l + r).trim());
         }
         return NullNode.getInstance();
     }
@@ -101,18 +119,42 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
         return current;
     }
 
-    private ObjectNode resolveTargetNode(MapGrammerParser.PathContext ctx, JsonNode rootNode) {
-        if (ctx.pathSegment().size() == 1) return (ObjectNode) rootNode;
+    private List<ObjectNode> resolveTargetNodes(MapGrammerParser.PathContext ctx, JsonNode root) {
+        List<JsonNode> current = List.of(root);
 
-        JsonNode currentNode = rootNode;
         for (int i = 0; i < ctx.pathSegment().size() - 1; i++) {
-            String field = ctx.pathSegment(i).getText();
-            currentNode = currentNode.get(field);
-            if (currentNode == null) return null;
+            MapGrammerParser.PathSegmentContext seg = ctx.pathSegment(i);
+            List<JsonNode> next = new ArrayList<>();
+
+            for (JsonNode node : current) {
+                String field = seg.IDENT().getText();
+                JsonNode child = node.get(field);
+
+                if (child == null) continue;
+
+                // address[]
+                if (seg.NUMBER() == null && seg.getText().endsWith("[]") && child.isArray()) {
+                    child.forEach(next::add);
+                }
+                // address[2]
+                else if (seg.NUMBER() != null && child.isArray()) {
+                    next.add(child.get(Integer.parseInt(seg.NUMBER().getText())));
+                }
+                // normal object
+                else {
+                    next.add(child);
+                }
+            }
+            current = next;
         }
 
-        return (ObjectNode) currentNode;
+        return current.stream()
+                .filter(Objects::nonNull)
+                .filter(JsonNode::isObject)
+                .map(n -> (ObjectNode) n)
+                .toList();
     }
+
 
     /**
      * remove double quotes

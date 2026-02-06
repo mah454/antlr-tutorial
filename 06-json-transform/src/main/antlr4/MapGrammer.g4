@@ -30,7 +30,9 @@ path
 
 pathSegment
     : IDENT ('[' ']')?
+    | IDENT ('[' NUMBER ']')?
     | ('[' ']').IDENT
+    | ('[' NUMBER ']').IDENT
     ;
 
 mathOperation
