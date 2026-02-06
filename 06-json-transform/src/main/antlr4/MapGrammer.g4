@@ -3,25 +3,25 @@ grammar MapGrammer;
 import Common;
 
 program
-    : statement* EOF
+    : clauses* EOF
     ;
 
-statement
+clauses
     : MAP '->' assignment
     ;
 
 assignment
-    : path '=' expr
+    : path '=' expression
     ;
 
-expr
-    : expr '+' expr              # concatExpr        // string concatenation
-    | expr mathOperation expr    # mathExpr          // math operation
-    | '(' expr ')'               # parenExpr
-    | NUMBER                     # numberExpr
-    | STRING                     # stringExpr
-    | NULL                       # nullExpr
-    | path                       # pathExpr
+expression
+    : expression '+' expression                # concatExpr        // string concatenation
+    | expression mathOperation expression      # mathExpr          // math operation
+    | '(' expression ')'                       # parenExpr
+    | NUMBER                                   # numberExpr
+    | STRING                                   # stringExpr
+    | NULL                                     # nullExpr
+    | path                                     # pathExpr
     ;
 
 path
@@ -30,9 +30,25 @@ path
 
 pathSegment
     : IDENT ('[' ']')?
-    | IDENT ('[' NUMBER ']')?
+    | IDENT ('[' statement ']')?
     | ('[' ']').IDENT
-    | ('[' NUMBER ']').IDENT
+    | ('[' statement ']').IDENT
+    ;
+
+statement
+    : stmtValue comparator stmtValue
+    | NUMBER
+    ;
+
+stmtValue
+    : STRING
+    | NUMBER
+    | NULL
+    | path
+    ;
+
+comparator
+    : '==' | '!=' | '>' | '>=' | '<' | '<=' | '~' | '!~'
     ;
 
 mathOperation

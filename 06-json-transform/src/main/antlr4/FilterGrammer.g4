@@ -3,25 +3,25 @@ grammar FilterGrammer;
 import Common;
 
 program
-    : statement* EOF
+    : clauses* EOF
+    ;
+
+clauses
+    : FILTER '->' expressions
+    ;
+
+expressions
+    : expressions OR expressions
+    | expressions AND expressions
+    | '(' expressions ')'
+    | statement
     ;
 
 statement
-    : FILTER '->' expression
+    : stmtValue comparator stmtValue
     ;
 
-expression
-    : expression OR expression
-    | expression AND expression
-    | '(' expression ')'
-    | comparison
-    ;
-
-comparison
-    : valueExpr comparator valueExpr
-    ;
-
-valueExpr
+stmtValue
     : STRING
     | NUMBER
     | NULL
@@ -38,7 +38,15 @@ pathSegment
     ;
 
 comparator
-    : '==' | '!=' | '>' | '>=' | '<' | '<=' | '~' | '!~'
+    : '='      // equal ignore case
+    | '=='     // exact case
+    | '!='     // not equal
+    | '>'      // greater than
+    | '>='     // greater equal
+    | '<'      // less than
+    | '<='     // less equal
+    | '~'      // contain
+    | '!~'     // not contain
     ;
 
 FILTER : 'filter';

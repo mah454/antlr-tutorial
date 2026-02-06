@@ -22,14 +22,14 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitProgram(MapGrammerParser.ProgramContext ctx) {
-        for (var stmt : ctx.statement()) {
+        for (var stmt : ctx.clauses()) {
             visit(stmt);
         }
         return null;
     }
 
     @Override
-    public Void visitStatement(MapGrammerParser.StatementContext ctx) {
+    public Void visitClauses(MapGrammerParser.ClausesContext ctx) {
         visit(ctx.assignment());
         return null;
     }
@@ -51,7 +51,7 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
         String fieldName = lastSegmentName(ctx.path());
 
         for (ObjectNode target : targets) {
-            JsonNode value = evalExpr(ctx.expr(), root);
+            JsonNode value = evalExpr(ctx.expression(), root);
 
             if (value.isNull()) {
                 target.remove(fieldName);
@@ -66,7 +66,7 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
         return seg.IDENT().getText();
     }
 
-    private JsonNode evalExpr(MapGrammerParser.ExprContext ctx, JsonNode rootNode) {
+    private JsonNode evalExpr(MapGrammerParser.ExpressionContext ctx, JsonNode rootNode) {
         if (ctx instanceof MapGrammerParser.NullExprContext) {
             return NullNode.getInstance();
         } else if (ctx instanceof MapGrammerParser.StringExprContext strCtx) {
@@ -76,10 +76,10 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
         } else if (ctx instanceof MapGrammerParser.PathExprContext pathCtx) {
             return resolvePath(pathCtx.path(), rootNode);
         } else if (ctx instanceof MapGrammerParser.ParenExprContext parentCtx) {
-            return evalExpr(parentCtx.expr(), rootNode);
+            return evalExpr(parentCtx.expression(), rootNode);
         } else if (ctx instanceof MapGrammerParser.MathExprContext mathCtx) {
-            JsonNode leftNode = evalExpr(mathCtx.expr(0), rootNode);
-            JsonNode rightNode = evalExpr(mathCtx.expr(1), rootNode);
+            JsonNode leftNode = evalExpr(mathCtx.expression(0), rootNode);
+            JsonNode rightNode = evalExpr(mathCtx.expression(1), rootNode);
             String op = mathCtx.mathOperation().getText();
 
             if (op.equals("+") && leftNode.isTextual() && rightNode.isTextual()) {
@@ -97,8 +97,8 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
                 default -> NullNode.getInstance();
             };
         } else if (ctx instanceof MapGrammerParser.ConcatExprContext concatCtx) {
-            JsonNode leftNode = evalExpr(concatCtx.expr(0), rootNode);
-            JsonNode rightNode = evalExpr(concatCtx.expr(1), rootNode);
+            JsonNode leftNode = evalExpr(concatCtx.expression(0), rootNode);
+            JsonNode rightNode = evalExpr(concatCtx.expression(1), rootNode);
             String l = leftNode.isNull() ? "" : leftNode.asText();
             String r = rightNode.isNull() ? "" : rightNode.asText();
             if (l == null && r == null) return NullNode.getInstance();
@@ -133,12 +133,12 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
                 if (child == null) continue;
 
                 // address[]
-                if (seg.NUMBER() == null && seg.getText().endsWith("[]") && child.isArray()) {
+                if (seg.statement() == null && seg.getText().endsWith("[]") && child.isArray()) {
                     child.forEach(next::add);
                 }
                 // address[2]
-                else if (seg.NUMBER() != null && child.isArray()) {
-                    next.add(child.get(Integer.parseInt(seg.NUMBER().getText())));
+                else if (seg.statement() != null && child.isArray()) {
+                    next.add(child.get(Integer.parseInt(seg.statement().getText())));
                 }
                 // normal object
                 else {
