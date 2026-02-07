@@ -181,6 +181,7 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
     }
 
     private JsonNode readValue(FilterGrammerParser.StmtValueContext ctx, JsonNode node) {
+        if (ctx.getText().equals("@")) return node;
         if (ctx.NUMBER() != null) return new IntNode(Integer.parseInt(ctx.NUMBER().getText()));
         if (ctx.STRING() != null) return new TextNode(stripQuotes(ctx.STRING().getText()));
         if (ctx.NULL() != null) return NullNode.getInstance();

@@ -78,15 +78,17 @@ public class MainClass {
 
 
         JsonStream.of(jsonData)
-                .filter("filter -> username = \"aaa\"")
+//                .filter("filter -> username = \"aaa\"")
+//                .filter("filter -> username = \"aaa\" or username = \"bbb\"")
 //                .filter("filter -> profile.address[ state = \"Zanjan\" ]")
-//                .filter("filter -> [].profile.address[ state = \"Zanjan\" ]")
+//                .filter("filter -> [].profile.address[ state = \"Zanjan\" or state = \"Tehran\"]")
 //                .filter("filter -> profile.address[0]")
 //                .filter("filter -> [].profile.address[0]")
 //                .filter("filter -> [].profile.name = \"ali\"")
 //                .filter("filter -> [0]")
 //                .filter("filter -> profile.address[].state == \"Hormozgan\"")
 //                .filter("filter -> [].profile.address[].country[0] = \"IR\"")
+                .filter("filter -> profile.address[].country[ @ == \"IR\" or @ == \"OZ\" ]")
                 .prettyPrint();
     }
 }

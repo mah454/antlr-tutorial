@@ -33,6 +33,7 @@ stmtValue
     | NUMBER
     | NULL
     | path
+    | '@'
     ;
 
 path
