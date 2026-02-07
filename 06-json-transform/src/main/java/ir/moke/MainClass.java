@@ -86,7 +86,7 @@ public class MainClass {
 //                .filter("filter -> [].profile.name = \"ali\"")
 //                .filter("filter -> [0]")
 //                .filter("filter -> profile.address[].state == \"Hormozgan\"")
-                .filter("filter -> [].profile.address[].country[0] = \"IR\"")
+//                .filter("filter -> [].profile.address[].country[0] = \"IR\"")
                 .prettyPrint();
     }
 }
