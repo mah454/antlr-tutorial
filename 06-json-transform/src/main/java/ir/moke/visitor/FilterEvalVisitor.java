@@ -112,27 +112,38 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         JsonNode rightNode = readValue(ctx.stmtValue(1), jsonNode);
         String comparator = ctx.comparator().getText();
 
-        if (leftNode.isArray()) {
+
+        if (leftNode.isArray() && !rightNode.isArray()) {
             for (JsonNode item : leftNode) {
-                if (item.isNumber()) {
-                    return checkNumeric(leftNode, rightNode, comparator);
-                } else {
-                    return checkString(leftNode, rightNode, comparator);
-                }
+                if (compare(item, rightNode, comparator)) return true;
             }
-        } else if ("~".equals(comparator) && leftNode.isArray()) {
-            for (JsonNode item : leftNode) {
-                return item.equals(rightNode);
-            }
-        } else {
-            if (leftNode.isNumber()) {
-                return checkNumeric(leftNode, rightNode, comparator);
-            } else {
-                return checkString(leftNode, rightNode, comparator);
-            }
+            return false;
         }
 
-        return false;
+        if (!leftNode.isArray() && rightNode.isArray()) {
+            for (JsonNode item : rightNode) {
+                if (compare(leftNode, item, comparator)) return true;
+            }
+            return false;
+        }
+
+        if (leftNode.isArray() && rightNode.isArray()) {
+            for (JsonNode ln : leftNode) {
+                for (JsonNode rn : rightNode) {
+                    if (compare(ln, rn, comparator)) return true;
+                }
+            }
+            return false;
+        }
+
+        return compare(leftNode, rightNode, comparator);
+    }
+
+    private boolean compare(JsonNode left, JsonNode right, String comparator) {
+        if (left.isNumber() && right.isNumber()) {
+            return checkNumeric(left, right, comparator);
+        }
+        return checkString(left, right, comparator);
     }
 
     private boolean checkString(JsonNode leftNode, JsonNode rightNode, String comparator) {
@@ -185,36 +196,78 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         return NullNode.getInstance();
     }
 
-    private List<JsonNode> resolvePath(FilterGrammerParser.PathContext ctx, JsonNode jsonNode) {
-        List<JsonNode> currentNodes = List.of(jsonNode);
-        if (ctx == null || ctx.pathSegment() == null || ctx.pathSegment().isEmpty()) return currentNodes;
-        for (FilterGrammerParser.PathSegmentContext segment : ctx.pathSegment()) {
-            List<JsonNode> foundedItems = new ArrayList<>();
-            for (JsonNode node : currentNodes) {
-                if (segment.NUMBER() != null) {
-                    if (node.isArray()) {
-                        int index = Integer.parseInt(segment.NUMBER().getText());
-                        JsonNode item = node.get(index);
-                        if (item != null) foundedItems.add(item);
-                    }
-                    continue;
-                }
-
-                String field = segment.IDENT().getText();
-                if (node.isObject() && node.has(field)) {
-                    JsonNode value = node.get(field);
-                    if (segment.NUMBER() != null && value.isArray()) {
-                        int idx = Integer.parseInt(segment.NUMBER().getText());
-                        JsonNode item = value.get(idx);
-                        if (item != null) foundedItems.add(item);
-                    } else {
-                        foundedItems.add(value);
-                    }
-                }
-            }
-            currentNodes = foundedItems;
+    private List<JsonNode> resolvePath(FilterGrammerParser.PathContext ctx, JsonNode root) {
+        if (ctx == null || ctx.pathSegment().isEmpty()) {
+            return List.of(root);
         }
-        return currentNodes;
+
+        List<JsonNode> current = List.of(root);
+
+        for (FilterGrammerParser.PathSegmentContext segment : ctx.pathSegment()) {
+            List<JsonNode> next = new ArrayList<>();
+
+            for (JsonNode node : current) {
+                applySegment(node, segment, next);
+            }
+
+            current = next;
+            if (current.isEmpty()) break;
+        }
+
+        return current;
+    }
+
+    private void applySegment(
+            JsonNode node,
+            FilterGrammerParser.PathSegmentContext segment,
+            List<JsonNode> output
+    ) {
+        // If node is array → apply segment to each element
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                applySegment(item, segment, output);
+            }
+            return;
+        }
+
+        if (!node.isObject()) return;
+
+        String field = segment.IDENT() != null
+                ? segment.IDENT().getText()
+                : null;
+
+        if (field == null || !node.has(field)) return;
+
+        JsonNode value = node.get(field);
+
+        // IDENT[]
+        if (isArrayExpansion(segment)) {
+            if (value.isArray()) {
+                value.forEach(output::add);
+            }
+            return;
+        }
+
+        // IDENT[NUMBER]
+        Integer index = extractIndex(segment);
+        if (index != null) {
+            if (value.isArray() && index < value.size()) {
+                output.add(value.get(index));
+            }
+            return;
+        }
+
+        // IDENT
+        output.add(value);
+    }
+
+    private boolean isArrayExpansion(FilterGrammerParser.PathSegmentContext ctx) {
+        return ctx.getText().endsWith("[]");
+    }
+
+    private Integer extractIndex(FilterGrammerParser.PathSegmentContext ctx) {
+        if (ctx.NUMBER() == null) return null;
+        return Integer.parseInt(ctx.NUMBER().getText());
     }
 
     /**

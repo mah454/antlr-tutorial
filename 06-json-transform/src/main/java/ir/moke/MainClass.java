@@ -16,6 +16,7 @@ public class MainClass {
                     "zip": 12345
                   },
                   "address" : [
+                    {"country" : [ "OZ", "IT", "IR"]},
                     {"state" :  "Tehran"},
                     {"state" :  "Hormozgan"}
                   ]
@@ -34,6 +35,7 @@ public class MainClass {
                     "zip": 99999
                   },
                   "address" : [
+                    {"country" : [ "AF", "AR", "EN"]},
                     {"state" :  "Mazanderan"},
                     {"state" :  "Khorasan"}
                   ]
@@ -52,6 +54,7 @@ public class MainClass {
                     "zip": 4444
                   },
                   "address" : [
+                    {"country" : [ "IR", "JP", "EN"]},
                     {"state" :  "Golestan"},
                     {"state" :  "Zanjan"}
                   ]
@@ -75,13 +78,15 @@ public class MainClass {
 
 
         JsonStream.of(jsonData)
+//                .filter("filter -> username = \"aaa\"")
 //                .filter("filter -> profile.address[ state = \"Zanjan\" ]")
 //                .filter("filter -> [].profile.address[ state = \"Zanjan\" ]")
 //                .filter("filter -> profile.address[0]")
 //                .filter("filter -> [].profile.address[0]")
+//                .filter("filter -> [].profile.name = \"ali\"")
 //                .filter("filter -> [0]")
-                .filter("filter -> profile.address[].state == \"Zanjan\"")
-//                .apply("map -> [].profile.address[0].state = \"test\"")
+//                .filter("filter -> profile.address[].state == \"Hormozgan\"")
+                .filter("filter -> [].profile.address[].country[0] = \"IR\"")
                 .prettyPrint();
     }
 }
