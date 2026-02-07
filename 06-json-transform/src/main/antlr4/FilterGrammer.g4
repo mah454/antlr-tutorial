@@ -50,7 +50,7 @@ comparator
     : '='      // equal ignore case
     | '=='     // exact case
     | '!='     // not equal ignore case
-    | '!=='    // not equal
+    | '!=='    // not exact equal
     | '>'      // greater than
     | '>='     // greater equal
     | '<'      // less than
