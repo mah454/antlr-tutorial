@@ -62,12 +62,52 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
             return evalExpression(ctx.expressions(0), jsonNode) && evalExpression(ctx.expressions(1), jsonNode);
         } else if (ctx.OR() != null) {
             return evalExpression(ctx.expressions(0), jsonNode) || evalExpression(ctx.expressions(1), jsonNode);
+        } else if (ctx.arrayFilter() != null) {
+            return evalArrayFilter(ctx.arrayFilter(), jsonNode);
         } else {
             return evalComparison(ctx.statement(), jsonNode);
         }
     }
 
+    private boolean evalArrayFilter(FilterGrammerParser.ArrayFilterContext ctx, JsonNode jsonNode) {
+        FilterGrammerParser.PathContext pathContext = ctx.path();
+        List<JsonNode> targetNodes;
+
+        if (pathContext == null) {
+            targetNodes = List.of(data);
+        } else {
+            targetNodes = resolvePath(pathContext, jsonNode);
+        }
+
+        if (ctx.NUMBER() != null) {
+            for (JsonNode arrNode : targetNodes) {
+                if (!arrNode.isArray()) continue;
+                int index = Integer.parseInt(ctx.NUMBER().getText());
+                ArrayNode resultArr = mapper.createArrayNode();
+                JsonNode indexNode = arrNode.get(index);
+                if (indexNode != null) resultArr.add(indexNode);
+                ((ArrayNode) arrNode).removeAll();
+                ((ArrayNode) arrNode).addAll(resultArr);
+            }
+        } else {
+            for (JsonNode arrNode : targetNodes) {
+                if (!arrNode.isArray()) continue;
+                ArrayNode resultArr = mapper.createArrayNode();
+                for (JsonNode node : arrNode) {
+                    FilterGrammerParser.ExpressionsContext expressionsContext = ctx.expressions();
+                    boolean evaluated = evalExpression(expressionsContext, node);
+                    if (evaluated) resultArr.add(node);
+                }
+                ((ArrayNode) arrNode).removeAll();
+                ((ArrayNode) arrNode).addAll(resultArr);
+            }
+        }
+
+        return true;
+    }
+
     private boolean evalComparison(FilterGrammerParser.StatementContext ctx, JsonNode jsonNode) {
+        if (ctx == null) return false;
         JsonNode leftNode = readValue(ctx.stmtValue(0), jsonNode);
         JsonNode rightNode = readValue(ctx.stmtValue(1), jsonNode);
         String comparator = ctx.comparator().getText();
@@ -147,22 +187,33 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
     private List<JsonNode> resolvePath(FilterGrammerParser.PathContext ctx, JsonNode jsonNode) {
         List<JsonNode> currentNodes = List.of(jsonNode);
-
+        if (ctx == null || ctx.pathSegment() == null || ctx.pathSegment().isEmpty()) return currentNodes;
         for (FilterGrammerParser.PathSegmentContext segment : ctx.pathSegment()) {
-            String field = segment.IDENT().getText();
             List<JsonNode> foundedItems = new ArrayList<>();
-            boolean isArray = segment.getChildCount() > 1; // has []
             for (JsonNode node : currentNodes) {
-                if (!node.has(field)) continue;
-                JsonNode value = node.get(field);
-                if (isArray && value.isArray()) {
-                    value.forEach(foundedItems::add);
+                if (segment.NUMBER() != null) {
+                    if (node.isArray()) {
+                        int index = Integer.parseInt(segment.NUMBER().getText());
+                        JsonNode item = node.get(index);
+                        if (item != null) foundedItems.add(item);
+                    }
+                    continue;
                 }
-                foundedItems.add(value);
+
+                String field = segment.IDENT().getText();
+                if (node.isObject() && node.has(field)) {
+                    JsonNode value = node.get(field);
+                    if (segment.NUMBER() != null && value.isArray()) {
+                        int idx = Integer.parseInt(segment.NUMBER().getText());
+                        JsonNode item = value.get(idx);
+                        if (item != null) foundedItems.add(item);
+                    } else {
+                        foundedItems.add(value);
+                    }
+                }
             }
             currentNodes = foundedItems;
         }
-
         return currentNodes;
     }
 

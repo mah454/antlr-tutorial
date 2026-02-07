@@ -15,6 +15,13 @@ expressions
     | expressions AND expressions
     | '(' expressions ')'
     | statement
+    | arrayFilter
+    ;
+
+arrayFilter
+    : path '[' expressions ']'
+    | path '[' NUMBER ']'
+    | '[' NUMBER ']'
     ;
 
 statement
@@ -34,7 +41,8 @@ path
 
 pathSegment
     : IDENT ('[' ']')?
-    | ('[' ']').IDENT
+    | IDENT '[' NUMBER ']'
+    | '[' NUMBER ']'
     ;
 
 comparator
