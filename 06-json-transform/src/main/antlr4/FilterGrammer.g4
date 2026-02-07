@@ -41,8 +41,9 @@ path
 
 pathSegment
     : IDENT ('[' ']')?
+    | ('[' ']').IDENT
     | IDENT '[' NUMBER ']'
-    | '[' NUMBER ']'
+    | '[' NUMBER ']' IDENT
     ;
 
 comparator

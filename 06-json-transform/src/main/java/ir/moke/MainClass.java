@@ -76,9 +76,11 @@ public class MainClass {
 
         JsonStream.of(jsonData)
 //                .filter("filter -> profile.address[ state = \"Zanjan\" ]")
+//                .filter("filter -> [].profile.address[ state = \"Zanjan\" ]")
 //                .filter("filter -> profile.address[0]")
+//                .filter("filter -> [].profile.address[0]")
 //                .filter("filter -> [0]")
-                .filter("filter -> profile.address[].state = \"Zanjan\"")
+                .filter("filter -> profile.address[].state == \"Zanjan\"")
 //                .apply("map -> [].profile.address[0].state = \"test\"")
                 .prettyPrint();
     }
