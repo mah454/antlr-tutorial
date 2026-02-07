@@ -97,12 +97,9 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
                 default -> NullNode.getInstance();
             };
         } else if (ctx instanceof MapGrammerParser.ConcatExprContext concatCtx) {
-            JsonNode leftNode = evalExpr(concatCtx.expression(0), rootNode);
-            JsonNode rightNode = evalExpr(concatCtx.expression(1), rootNode);
-            String l = leftNode.isNull() ? "" : leftNode.asText();
-            String r = rightNode.isNull() ? "" : rightNode.asText();
-            if (l == null && r == null) return NullNode.getInstance();
-            return new TextNode((l + r).trim());
+            String l = evalExpr(concatCtx.expression(0),rootNode).asText();
+            String r = evalExpr(concatCtx.expression(1),rootNode).asText();
+            return new TextNode(l + r);
         }
         return NullNode.getInstance();
     }

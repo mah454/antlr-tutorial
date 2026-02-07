@@ -64,20 +64,8 @@ public class MainClass {
             """;
 
     static void main() {
-        /* Filters */
-//        String inputText = "filter -> profile.age == 45 or (profile.contact.city == \"Eghlid\" or profile.contact.city == \"Pardis\")";
-//        String inputText = "filter -> profile.age == 45 or profile.age == 33";
-
-        /* Maps */
-//        String input = "map -> profile.name = \"jafar\"";
-//        String input = "map -> profile.age = profile.age * 2";
-//        String input = "map -> profile.age = profile.age + \" \" + 1111";
-//        String input = "map -> profile.name = null";
-//        String input = "map -> profile.contact.fullName = profile.name2 + \" \" + profile.family";
-//        String input = "map -> [].profile.address[2].state = \"test\"";
-
-
-        JsonStream.of(jsonData)
+        /* Check Filter */
+//        JsonStream.of(jsonData)
 //                .filter("filter -> username = \"aaa\"")
 //                .filter("filter -> username = \"aaa\" or username = \"bbb\"")
 //                .filter("filter -> profile.address[ state = \"Zanjan\" ]")
@@ -89,6 +77,17 @@ public class MainClass {
 //                .filter("filter -> profile.address[].state == \"Hormozgan\"")
 //                .filter("filter -> [].profile.address[].country[0] = \"IR\"")
 //                .filter("filter -> profile.address[].country[ @ == \"IR\" or @ == \"OZ\" ]")
+//                .prettyPrint();
+
+
+        /* Check Map */
+        JsonStream.of(jsonData)
+//                .map("map -> profile.name = \"jafar\"")
+//                .map("map -> profile.age = profile.age * 2")
+//                .map("map -> profile.age = profile.age + \" \" + 1111")
+//                .map("map -> profile.name = null")
+//                .map("map -> profile.contact.fullName = profile.name + \" \" + profile.family")
+                .map("[].profile.address[].check = \"hello\" ")
                 .prettyPrint();
     }
 }
