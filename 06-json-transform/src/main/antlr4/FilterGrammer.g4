@@ -49,7 +49,8 @@ pathSegment
 comparator
     : '='      // equal ignore case
     | '=='     // exact case
-    | '!='     // not equal
+    | '!='     // not equal ignore case
+    | '!=='    // not equal
     | '>'      // greater than
     | '>='     // greater equal
     | '<'      // less than

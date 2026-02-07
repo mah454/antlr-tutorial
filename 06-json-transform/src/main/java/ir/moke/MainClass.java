@@ -78,7 +78,7 @@ public class MainClass {
 
 
         JsonStream.of(jsonData)
-//                .filter("filter -> username = \"aaa\"")
+                .filter("filter -> username = \"aaa\"")
 //                .filter("filter -> profile.address[ state = \"Zanjan\" ]")
 //                .filter("filter -> [].profile.address[ state = \"Zanjan\" ]")
 //                .filter("filter -> profile.address[0]")

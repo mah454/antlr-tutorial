@@ -152,7 +152,8 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         return switch (comparator) {
             case "=" -> lText.equalsIgnoreCase(rText);
             case "==" -> Objects.equals(lText, rText);
-            case "!=" -> !Objects.equals(lText, rText);
+            case "!=" -> !Objects.equals(lText.toLowerCase(), rText.toLowerCase());
+            case "!==" -> !Objects.equals(lText, rText);
             case ">" -> lText.compareTo(rText) > 0;
             case ">=" -> lText.compareTo(rText) >= 0;
             case "<" -> lText.compareTo(rText) < 0;
@@ -168,7 +169,7 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
         double r = rightNode.doubleValue();
         return switch (comparator) {
             case "=", "==" -> l == r;
-            case "!=" -> l != r;
+            case "!=", "!==" -> l != r;
             case ">" -> l > r;
             case ">=" -> l >= r;
             case "<" -> l < r;
