@@ -12,111 +12,168 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
-
+public class MapEvalVisitor extends MapGrammerBaseVisitor<JsonNode> {
+    private JsonNode currentRoot;
     private final JsonNode data;
 
     public MapEvalVisitor(JsonNode data) {
         this.data = data;
     }
 
+    /* ================= PROGRAM ================= */
+
     @Override
-    public Void visitProgram(MapGrammerParser.ProgramContext ctx) {
-        for (var stmt : ctx.clauses()) {
-            visit(stmt);
-        }
+    public JsonNode visitProgram(MapGrammerParser.ProgramContext ctx) {
+        ctx.clauses().forEach(this::visit);
         return null;
     }
 
     @Override
-    public Void visitClauses(MapGrammerParser.ClausesContext ctx) {
-        visit(ctx.assignment());
-        return null;
+    public JsonNode visitClauses(MapGrammerParser.ClausesContext ctx) {
+        return visit(ctx.assignment());
     }
 
     @Override
-    public Void visitAssignment(MapGrammerParser.AssignmentContext ctx) {
-        if (data.isObject()) {
+    public JsonNode visitAssignment(MapGrammerParser.AssignmentContext ctx) {
+        if (data.isArray()) {
+            data.forEach(n -> applyAssignment(ctx, n));
+        } else {
             applyAssignment(ctx, data);
-        } else if (data.isArray()) {
-            for (JsonNode item : data) {
-                applyAssignment(ctx, item);
-            }
         }
         return null;
     }
 
     private void applyAssignment(MapGrammerParser.AssignmentContext ctx, JsonNode root) {
+        this.currentRoot = root; // ✅ CRITICAL
+
         List<ObjectNode> targets = resolveTargetNodes(ctx.path(), root);
-        String fieldName = lastSegmentName(ctx.path());
+        String field = lastSegmentName(ctx.path());
+
+        JsonNode value = visit(ctx.expression());
 
         for (ObjectNode target : targets) {
-            JsonNode value = evalExpr(ctx.expression(), root);
-
             if (value.isNull()) {
-                target.remove(fieldName);
+                target.remove(field);
             } else {
-                target.set(fieldName, value.deepCopy());
+                target.set(field, value.deepCopy());
             }
         }
     }
 
     private String lastSegmentName(MapGrammerParser.PathContext ctx) {
-        MapGrammerParser.PathSegmentContext seg = ctx.pathSegment(ctx.pathSegment().size() - 1);
-        return seg.IDENT().getText();
+        return ctx.pathSegment(ctx.pathSegment().size() - 1)
+                .IDENT()
+                .getText();
     }
 
-    private JsonNode evalExpr(MapGrammerParser.ExpressionContext ctx, JsonNode rootNode) {
-        if (ctx instanceof MapGrammerParser.NullExprContext) {
-            return NullNode.getInstance();
-        } else if (ctx instanceof MapGrammerParser.StringExprContext strCtx) {
-            return new TextNode(stripQuotes(strCtx.STRING().getText()));
-        } else if (ctx instanceof MapGrammerParser.NumberExprContext numCtx) {
-            return new DoubleNode(Double.parseDouble(numCtx.NUMBER().getText()));
-        } else if (ctx instanceof MapGrammerParser.PathExprContext pathCtx) {
-            return resolvePath(pathCtx.path(), rootNode);
-        } else if (ctx instanceof MapGrammerParser.ParenExprContext parentCtx) {
-            return evalExpr(parentCtx.expression(), rootNode);
-        } else if (ctx instanceof MapGrammerParser.MathExprContext mathCtx) {
-            JsonNode leftNode = evalExpr(mathCtx.expression(0), rootNode);
-            JsonNode rightNode = evalExpr(mathCtx.expression(1), rootNode);
-            String op = mathCtx.mathOperation().getText();
+    /* ================= EXPRESSIONS ================= */
 
-            if (op.equals("+") && leftNode.isTextual() && rightNode.isTextual()) {
-                return new TextNode(leftNode.asText() + rightNode.asText());
-            }
-
-            double l = leftNode.isNumber() ? leftNode.asDouble() : 0;
-            double r = rightNode.isNumber() ? rightNode.asDouble() : 0;
-
-            return switch (op) {
-                case "+" -> new DoubleNode(l + r);
-                case "-" -> new DoubleNode(l - r);
-                case "*" -> new DoubleNode(l * r);
-                case "/" -> new DoubleNode(l / r);
-                default -> NullNode.getInstance();
-            };
-        } else if (ctx instanceof MapGrammerParser.ConcatExprContext concatCtx) {
-            String l = evalExpr(concatCtx.expression(0),rootNode).asText();
-            String r = evalExpr(concatCtx.expression(1),rootNode).asText();
-            return new TextNode(l + r);
-        }
+    @Override
+    public JsonNode visitNullExpr(MapGrammerParser.NullExprContext ctx) {
         return NullNode.getInstance();
     }
 
-    private JsonNode resolvePath(MapGrammerParser.PathContext ctx, JsonNode rootNode) {
-        JsonNode current = rootNode;
-        for (var id : ctx.pathSegment()) {
-            if (current.has(id.getText())) {
-                current = current.get(id.getText());
-            } else {
-                return NullNode.instance;
-            }
+    @Override
+    public JsonNode visitStringExpr(MapGrammerParser.StringExprContext ctx) {
+        return TextNode.valueOf(stripQuotes(ctx.STRING().getText()));
+    }
+
+    @Override
+    public JsonNode visitNumberExpr(MapGrammerParser.NumberExprContext ctx) {
+        return DoubleNode.valueOf(Double.parseDouble(ctx.NUMBER().getText()));
+    }
+
+    @Override
+    public JsonNode visitPathExpr(MapGrammerParser.PathExprContext ctx) {
+        return resolvePath(ctx.path(), currentRoot);
+    }
+
+    @Override
+    public JsonNode visitParenExpr(MapGrammerParser.ParenExprContext ctx) {
+        return visit(ctx.expression());
+    }
+
+    @Override
+    public JsonNode visitConcatExpr(MapGrammerParser.ConcatExprContext ctx) {
+        return TextNode.valueOf(visit(ctx.expression(0)).asText() + visit(ctx.expression(1)).asText()
+        );
+    }
+
+    @Override
+    public JsonNode visitMathExpr(MapGrammerParser.MathExprContext ctx) {
+        JsonNode l = visit(ctx.expression(0));
+        JsonNode r = visit(ctx.expression(1));
+
+        double lv = l.isNumber() ? l.asDouble() : 0;
+        double rv = r.isNumber() ? r.asDouble() : 0;
+
+        return switch (ctx.mathOperation().getText()) {
+            case "+" -> DoubleNode.valueOf(lv + rv);
+            case "-" -> DoubleNode.valueOf(lv - rv);
+            case "*" -> DoubleNode.valueOf(lv * rv);
+            case "/" -> DoubleNode.valueOf(lv / rv);
+            default -> NullNode.getInstance();
+        };
+    }
+
+    /* ================= FILTER ================= */
+
+    private boolean evalFilter(MapGrammerParser.StatementContext ctx, JsonNode current) {
+
+        JsonNode left = evalStmtValue(ctx.stmtValue(0), current);
+        JsonNode right = evalStmtValue(ctx.stmtValue(1), current);
+
+        if (left.isNull() || right.isNull()) return false;
+
+        return switch (ctx.comparator().getText()) {
+            case "==" -> left.equals(right);
+            case "!=" -> !left.equals(right);
+            case ">" -> left.asDouble() > right.asDouble();
+            case ">=" -> left.asDouble() >= right.asDouble();
+            case "<" -> left.asDouble() < right.asDouble();
+            case "<=" -> left.asDouble() <= right.asDouble();
+            case "~" -> left.asText().contains(right.asText());
+            case "!~" -> !left.asText().contains(right.asText());
+            default -> false;
+        };
+    }
+
+    private JsonNode evalStmtValue(MapGrammerParser.StmtValueContext ctx, JsonNode current) {
+
+        if (ctx.STRING() != null)
+            return TextNode.valueOf(stripQuotes(ctx.STRING().getText()));
+
+        if (ctx.NUMBER() != null)
+            return DoubleNode.valueOf(Double.parseDouble(ctx.NUMBER().getText()));
+
+        if (ctx.NULL() != null)
+            return NullNode.getInstance();
+
+        if (ctx.path() != null)
+            return resolvePath(ctx.path(), current);
+
+        return NullNode.getInstance();
+    }
+
+    /* ================= PATH ================= */
+
+    private JsonNode resolvePath(MapGrammerParser.PathContext ctx, JsonNode root) {
+
+        JsonNode current = root;
+
+        for (var seg : ctx.pathSegment()) {
+            if (!current.isObject()) return NullNode.instance;
+
+            current = current.get(seg.IDENT().getText());
+            if (current == null) return NullNode.instance;
         }
         return current;
     }
 
+    /* ================= TARGET RESOLUTION ================= */
+
     private List<ObjectNode> resolveTargetNodes(MapGrammerParser.PathContext ctx, JsonNode root) {
+
         List<JsonNode> current = List.of(root);
 
         for (int i = 0; i < ctx.pathSegment().size() - 1; i++) {
@@ -124,18 +181,25 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
             List<JsonNode> next = new ArrayList<>();
 
             for (JsonNode node : current) {
-                String field = seg.IDENT().getText();
-                JsonNode child = node.get(field);
+                if (!node.isObject()) continue;
 
+                JsonNode child = node.get(seg.IDENT().getText());
                 if (child == null) continue;
 
-                // address[]
-                if (seg.statement() == null && seg.getText().endsWith("[]") && child.isArray()) {
-                    child.forEach(next::add);
+                // address[NUMBER]
+                if (seg.NUMBER() != null && child.isArray()) {
+                    int idx = Integer.parseInt(seg.NUMBER().getText());
+                    if (idx >= 0 && idx < child.size()) {
+                        next.add(child.get(idx));
+                    }
                 }
-                // address[2]
+                // address[ filter ]
                 else if (seg.statement() != null && child.isArray()) {
-                    next.add(child.get(Integer.parseInt(seg.statement().getText())));
+                    for (JsonNode e : child) {
+                        if (e.isObject() && evalFilter(seg.statement(), e)) {
+                            next.add(e);
+                        }
+                    }
                 }
                 // normal object
                 else {
@@ -152,11 +216,8 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<Void> {
                 .toList();
     }
 
+    /* ================= UTIL ================= */
 
-    /**
-     * remove double quotes
-     *
-     */
     private String stripQuotes(String s) {
         return s.substring(1, s.length() - 1);
     }

@@ -29,10 +29,12 @@ path
     ;
 
 pathSegment
-    : IDENT ('[' ']')?
-    | IDENT ('[' statement ']')?
-    | ('[' ']').IDENT
-    | ('[' statement ']').IDENT
+    : IDENT
+    | IDENT '[' ']'                        // address[]
+    | IDENT '[' NUMBER ']'                 // address[2]
+    | IDENT '[' statement ']'             // address[state == "X"]
+    | '[' ']' '.' IDENT
+    | '[' statement ']' '.' IDENT
     ;
 
 statement
