@@ -65,7 +65,7 @@ public class MainClass {
 
     static void main() {
         /* Check Filter */
-        JsonStream.of(jsonData)
+//        JsonStream.of(jsonData)
 //                .filter("filter -> username = \"aaa\"")
 //                .filter("filter -> username = \"aaa\" or username = \"bbb\"")
 //                .filter("filter -> profile.address[ state = \"Zanjan\" ]")
@@ -76,18 +76,18 @@ public class MainClass {
 //                .filter("filter -> [0]")
 //                .filter("filter -> profile.address[].state == \"Hormozgan\"")
 //                .filter("filter -> [].profile.address[].country[0] = \"IR\"")
-                .filter("filter -> profile.address[].country[ @ == \"IR\" or @ == \"OZ\" ]")
-                .prettyPrint();
+//                .filter("filter -> profile.address[].country[ @ == \"IR\" or @ == \"OZ\" ]")
+//                .prettyPrint();
 
 
         /* Check Map */
-//        JsonStream.of(jsonData)
+        JsonStream.of(jsonData)
 //                .map("map -> profile.name = \"jafar\"")
-//                .map("map -> profile.age = profile.age * 3 ")
+                .map("map -> profile.age = profile.age * 3 ")
 //                .map("map -> profile.age = profile.age + \" \" + 1111")
 //                .map("map -> profile.name = null")
-//                .map("map -> profile.contact.fullName = profile.name + \" \" + profile.family")
+                .map("map -> profile.contact.fullName = profile.name + \" \" + profile.family")
 //                .map("[].profile.address[ state == \"Golestan\" ].zz = \"hello\" ")
-//                .prettyPrint();
+                .prettyPrint();
     }
 }

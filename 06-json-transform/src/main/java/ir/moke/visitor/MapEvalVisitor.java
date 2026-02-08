@@ -139,31 +139,19 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<JsonNode> {
     }
 
     private JsonNode evalStmtValue(MapGrammerParser.StmtValueContext ctx, JsonNode current) {
-
-        if (ctx.STRING() != null)
-            return TextNode.valueOf(stripQuotes(ctx.STRING().getText()));
-
-        if (ctx.NUMBER() != null)
-            return DoubleNode.valueOf(Double.parseDouble(ctx.NUMBER().getText()));
-
-        if (ctx.NULL() != null)
-            return NullNode.getInstance();
-
-        if (ctx.path() != null)
-            return resolvePath(ctx.path(), current);
-
+        if (ctx.STRING() != null) return TextNode.valueOf(stripQuotes(ctx.STRING().getText()));
+        if (ctx.NUMBER() != null) return DoubleNode.valueOf(Double.parseDouble(ctx.NUMBER().getText()));
+        if (ctx.NULL() != null) return NullNode.getInstance();
+        if (ctx.path() != null) return resolvePath(ctx.path(), current);
         return NullNode.getInstance();
     }
 
     /* ================= PATH ================= */
 
     private JsonNode resolvePath(MapGrammerParser.PathContext ctx, JsonNode root) {
-
         JsonNode current = root;
-
         for (var seg : ctx.pathSegment()) {
             if (!current.isObject()) return NullNode.instance;
-
             current = current.get(seg.IDENT().getText());
             if (current == null) return NullNode.instance;
         }
@@ -173,7 +161,6 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<JsonNode> {
     /* ================= TARGET RESOLUTION ================= */
 
     private List<ObjectNode> resolveTargetNodes(MapGrammerParser.PathContext ctx, JsonNode root) {
-
         List<JsonNode> current = List.of(root);
 
         for (int i = 0; i < ctx.pathSegment().size() - 1; i++) {
