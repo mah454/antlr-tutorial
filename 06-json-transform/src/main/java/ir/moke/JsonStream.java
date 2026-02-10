@@ -1,8 +1,11 @@
 package ir.moke;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.util.DefaultIndenter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import ir.moke.antlr4.FilterGrammerLexer;
 import ir.moke.antlr4.FilterGrammerParser;
 import ir.moke.antlr4.MapGrammerLexer;
@@ -20,13 +23,21 @@ public class JsonStream {
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final String MAP_SIGNATURE = "map -> ";
     private static final String FILTER_SIGNATURE = "filter -> ";
-    private final String jsonData;
+    private String jsonData;
     private JsonNode node;
+
+    static {
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+        DefaultPrettyPrinter prettyPrinter = new DefaultPrettyPrinter();
+        prettyPrinter.indentArraysWith(DefaultIndenter.SYSTEM_LINEFEED_INSTANCE);
+        mapper.writer(prettyPrinter);
+        mapper.setDefaultPrettyPrinter(prettyPrinter);
+    }
 
     private JsonStream(String jsonData) {
         try {
             this.jsonData = jsonData;
-            node = mapper.readTree(jsonData);
+            this.node = mapper.readTree(jsonData);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -76,7 +87,9 @@ public class JsonStream {
             // Run visitor
             FilterEvalVisitor visitor = new FilterEvalVisitor(node);
             visitor.visit(program);
-            return new JsonStream(node);
+
+            this.jsonData = node.toString();
+            return this;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -113,7 +126,8 @@ public class JsonStream {
             MapEvalVisitor visitor = new MapEvalVisitor(node);
             visitor.visit(program);
 
-            return new JsonStream(node);
+            this.jsonData = node.toString();
+            return this;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -121,6 +135,7 @@ public class JsonStream {
 
     public JsonStream apply(List<String> clauses) {
         for (String clause : clauses) {
+            if (clause == null || clause.isEmpty()) continue;
             if (clause.toLowerCase().startsWith("filter")) {
                 this.node = filter(clause).toJsonNode();
             } else if (clause.toLowerCase().startsWith("map")) {
@@ -149,7 +164,15 @@ public class JsonStream {
     }
 
     public void prettyPrint() {
-        System.out.println(node.toPrettyString());
+        System.out.println(prettyString());
+    }
+
+    public String prettyString() {
+        try {
+            return mapper.writeValueAsString(node);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void print() {
