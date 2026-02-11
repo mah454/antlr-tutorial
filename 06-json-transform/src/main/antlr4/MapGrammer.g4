@@ -29,16 +29,21 @@ path
     ;
 
 pathSegment
-    : IDENT
-    | IDENT '[' ']'                        // address[]
-    | IDENT '[' NUMBER ']'                 // address[2]
-    | IDENT '[' statement ']'             // address[state == "X"]
-    | '[' ']' '.' IDENT
-    | '[' statement ']' '.' IDENT
+    : IDENT arraySelector*
+    | arraySelector
+    ;
+
+arraySelector
+    : '[' ']'
+    | '[' NUMBER ']'
+    | '[' statement ']'
     ;
 
 statement
     : stmtValue comparator stmtValue
+    | statement OR statement
+    | statement AND statement
+    | '(' statement ')'
     | NUMBER
     ;
 

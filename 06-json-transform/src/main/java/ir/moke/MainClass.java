@@ -79,15 +79,16 @@ public class MainClass {
 //                .filter("filter -> profile.address[].country[ @ == \"IR\" or @ == \"OZ\" ]")
 //                .prettyPrint();
 
-
         /* Check Map */
         JsonStream.of(jsonData)
-//                .map("map -> profile.name = \"jafar\"")
+                .map("map -> [ username == \"aaa\" or username == \"bbb\" ].profile.name = \"jafar\"")
                 .map("map -> profile.age = profile.age * 3 ")
-//                .map("map -> profile.age = profile.age + \" \" + 1111")
-//                .map("map -> profile.name = null")
+                .map("map -> profile.age = profile.age + \" \" + 1111")
                 .map("map -> profile.contact.fullName = profile.name + \" \" + profile.family")
-//                .map("[].profile.address[ state == \"Golestan\" ].zz = \"hello\" ")
+                .map("map -> profile.name = null")
+                .map("map -> profile.family = null")
+                .map("[1].profile.address[ state == \"Golestan\" or state == \"Khorasan\" ].zz = \"hello\" ")
+                .map("[1].profile.address[1].www = \"hello\"")
                 .prettyPrint();
     }
 }
