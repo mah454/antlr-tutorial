@@ -36,17 +36,39 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitExpressions(FilterGrammerParser.ExpressionsContext ctx) {
+
         if (!data.isArray()) throw new IllegalArgumentException("Json node should be array");
+
         ArrayNode arr = (ArrayNode) data;
         if (arr.isEmpty()) return null;
 
+        /*
+         * SPECIAL CASE → filter -> [NUMBER]
+         */
+        if (ctx.arrayFilter() != null && ctx.arrayFilter().path() == null && ctx.arrayFilter().NUMBER() != null) {
+            int index = Integer.parseInt(ctx.arrayFilter().NUMBER().getText());
+            ArrayNode filtered = mapper.createArrayNode();
+            JsonNode indexedNode = arr.get(index);
+            if (indexedNode != null) filtered.add(indexedNode);
+
+            arr.removeAll();
+            arr.addAll(filtered);
+
+            return null;
+        }
+
+        /*
+         * NORMAL FILTERING
+         */
         ArrayNode filtered = mapper.createArrayNode();
+
         for (JsonNode item : arr) {
             if (evalExpression(ctx, item)) filtered.add(item);
         }
 
         arr.removeAll();
         arr.addAll(filtered);
+
         return null;
     }
 
