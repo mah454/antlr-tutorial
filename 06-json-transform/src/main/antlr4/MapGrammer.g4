@@ -29,22 +29,24 @@ path
     ;
 
 pathSegment
-    : IDENT arraySelector*
-    | arraySelector
-    ;
-
-arraySelector
-    : '[' ']'
-    | '[' NUMBER ']'
-    | '[' statement ']'
+    : IDENT
+    | IDENT '[' ']'
+    | IDENT '[' NUMBER ']'
+    | IDENT '[' statement ']'
+    | '[' ']' '.' IDENT
+    | '[' statement ']' '.' IDENT
     ;
 
 statement
-    : stmtValue comparator stmtValue
-    | statement OR statement
+    : statement OR statement
     | statement AND statement
     | '(' statement ')'
+    | comparisonExpr
     | NUMBER
+    ;
+
+comparisonExpr
+    : stmtValue comparator stmtValue
     ;
 
 stmtValue

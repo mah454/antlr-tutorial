@@ -36,7 +36,6 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitExpressions(FilterGrammerParser.ExpressionsContext ctx) {
-
         if (!data.isArray()) throw new IllegalArgumentException("Json node should be array");
 
         ArrayNode arr = (ArrayNode) data;
