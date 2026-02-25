@@ -54,10 +54,20 @@ stmtValue
     | NUMBER
     | NULL
     | path
+    | '@'
     ;
 
 comparator
-    : '==' | '!=' | '>' | '>=' | '<' | '<=' | '~' | '!~'
+    : '='      // equal ignore case
+    | '=='     // exact case
+    | '!='     // not equal ignore case
+    | '!=='    // not exact equal
+    | '>'      // greater than
+    | '>='     // greater equal
+    | '<'      // less than
+    | '<='     // less equal
+    | '~'      // contain
+    | '!~'     // not contain
     ;
 
 mathOperation

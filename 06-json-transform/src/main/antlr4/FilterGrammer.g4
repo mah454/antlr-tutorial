@@ -37,14 +37,20 @@ stmtValue
     ;
 
 path
-    : pathSegment ('.' pathSegment)*
+    : arrayIndexOrAll ('.' pathSegment)*        // allow paths starting with [] or [NUMBER]
+    | pathSegment ('.' pathSegment)*            // normal path
     ;
 
 pathSegment
-    : IDENT ('[' ']')?
-    | ('[' ']').IDENT
-    | IDENT '[' NUMBER ']'
-    | '[' NUMBER ']' IDENT
+    : IDENT                                     // simple field
+    | IDENT '[' NUMBER ']'                      // field[index]
+    | IDENT '[' ']'                             // field[]
+    | arrayIndexOrAll                           // nested array access directly
+    ;
+
+arrayIndexOrAll
+    : '[' ']'                                   // all elements
+    | '[' NUMBER ']'                            // element by index
     ;
 
 comparator

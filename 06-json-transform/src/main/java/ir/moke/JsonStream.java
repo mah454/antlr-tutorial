@@ -30,7 +30,6 @@ public class JsonStream {
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         DefaultPrettyPrinter prettyPrinter = new DefaultPrettyPrinter();
         prettyPrinter.indentArraysWith(DefaultIndenter.SYSTEM_LINEFEED_INSTANCE);
-        mapper.writer(prettyPrinter);
         mapper.setDefaultPrettyPrinter(prettyPrinter);
     }
 
@@ -68,7 +67,7 @@ public class JsonStream {
             }
 
             /* Start filtering */
-            CharStream input = CharStreams.fromString(filterClause);
+            CharStream input = CharStreams.fromString(filterClause.trim());
 
             // Step 2: Create a lexer
             FilterGrammerLexer lexer = new FilterGrammerLexer(input);
@@ -79,7 +78,6 @@ public class JsonStream {
             // Step 4: Create a parser
             FilterGrammerParser parser = new FilterGrammerParser(tokens);
             FilterGrammerParser.ProgramContext program = parser.program();
-
 
             // json to ArrayNode Object
             node = new ObjectMapper().readTree(jsonData);
@@ -107,7 +105,7 @@ public class JsonStream {
             }
 
             /* Start mapping */
-            CharStream inputStream = CharStreams.fromString(mapClause);
+            CharStream inputStream = CharStreams.fromString(mapClause.trim());
 
             // Step 1: Create a lexer
             MapGrammerLexer lexer = new MapGrammerLexer(inputStream);
@@ -135,7 +133,7 @@ public class JsonStream {
 
     public JsonStream apply(List<String> clauses) {
         for (String clause : clauses) {
-            if (clause == null || clause.isEmpty()) continue;
+            if (clause == null || clause.isEmpty() || clause.startsWith("//") || clause.startsWith("#")) continue;
             if (clause.toLowerCase().startsWith("filter")) {
                 this.node = filter(clause).toJsonNode();
             } else if (clause.toLowerCase().startsWith("map")) {

@@ -15,7 +15,7 @@ import java.util.Objects;
 
 public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper mapper = new ObjectMapper();
     private final JsonNode data;
 
     public FilterEvalVisitor(JsonNode data) {
@@ -36,39 +36,47 @@ public class FilterEvalVisitor extends FilterGrammerBaseVisitor<Void> {
 
     @Override
     public Void visitExpressions(FilterGrammerParser.ExpressionsContext ctx) {
-        if (!data.isArray()) throw new IllegalArgumentException("Json node should be array");
+        if (!data.isArray())
+            throw new IllegalArgumentException("Json node should be array");
 
         ArrayNode arr = (ArrayNode) data;
-        if (arr.isEmpty()) return null;
 
         /*
-         * SPECIAL CASE → filter -> [NUMBER]
+         * ROOT ARRAY SELECTION (MUST RUN FIRST)
+         * filter -> [0].something
+         * filter -> [].something
          */
-        if (ctx.arrayFilter() != null && ctx.arrayFilter().path() == null && ctx.arrayFilter().NUMBER() != null) {
-            int index = Integer.parseInt(ctx.arrayFilter().NUMBER().getText());
-            ArrayNode filtered = mapper.createArrayNode();
-            JsonNode indexedNode = arr.get(index);
-            if (indexedNode != null) filtered.add(indexedNode);
-
-            arr.removeAll();
-            arr.addAll(filtered);
-
+        if (ctx.arrayFilter() != null && ctx.arrayFilter().path() == null) {
+            applyRootArrayFilter(ctx.arrayFilter(), arr);
             return null;
         }
 
-        /*
-         * NORMAL FILTERING
-         */
+        // NORMAL BOOLEAN FILTERING
         ArrayNode filtered = mapper.createArrayNode();
-
         for (JsonNode item : arr) {
             if (evalExpression(ctx, item)) filtered.add(item);
         }
 
         arr.removeAll();
         arr.addAll(filtered);
-
         return null;
+    }
+
+    private void applyRootArrayFilter(FilterGrammerParser.ArrayFilterContext ctx, ArrayNode arr) {
+        ArrayNode result = mapper.createArrayNode();
+
+        if (ctx.NUMBER() != null) {
+            int index = Integer.parseInt(ctx.NUMBER().getText());
+            if (index >= 0 && index < arr.size()) {
+                result.add(arr.get(index));
+            }
+        } else {
+            // [] → keep all elements (no-op)
+            result.addAll(arr);
+        }
+
+        arr.removeAll();
+        arr.addAll(result);
     }
 
     private boolean evalExpression(FilterGrammerParser.ExpressionsContext ctx, JsonNode node) {

@@ -1,6 +1,7 @@
 package ir.moke.visitor;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.DoubleNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -10,8 +11,10 @@ import ir.moke.antlr4.MapGrammerParser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class MapEvalVisitor extends MapGrammerBaseVisitor<JsonNode> {
+    private static final ObjectMapper mapper = new ObjectMapper();
     private JsonNode currentRoot;
     private final JsonNode data;
 
@@ -159,31 +162,65 @@ public class MapEvalVisitor extends MapGrammerBaseVisitor<JsonNode> {
         return false;
     }
 
-    private boolean evalComparison(MapGrammerParser.ComparisonExprContext ctx, JsonNode current) {
+    private boolean evalComparison(MapGrammerParser.ComparisonExprContext ctx, JsonNode node) {
+        if (ctx == null) return false;
+        JsonNode left = readValue(ctx.stmtValue(0), node);
+        JsonNode right = readValue(ctx.stmtValue(1), node);
+        if (left == null || right == null) return false;
+        String cmp = ctx.comparator().getText();
 
-        JsonNode left = evalStmtValue(ctx.stmtValue(0), current);
-        JsonNode right = evalStmtValue(ctx.stmtValue(1), current);
+        if (left.isArray() || right.isArray()) {
+            for (JsonNode l : left.isArray() ? left : List.of(left)) {
+                for (JsonNode r : right.isArray() ? right : List.of(right)) {
+                    if (compare(l, r, cmp)) return true;
+                }
+            }
+            return false;
+        }
 
-        if (left.isNull() || right.isNull()) return false;
+        return compare(left, right, cmp);
+    }
 
-        return switch (ctx.comparator().getText()) {
-            case "==" -> left.equals(right);
-            case "!=" -> !left.equals(right);
-            case ">" -> left.asDouble() > right.asDouble();
-            case ">=" -> left.asDouble() >= right.asDouble();
-            case "<" -> left.asDouble() < right.asDouble();
-            case "<=" -> left.asDouble() <= right.asDouble();
-            case "~" -> left.asText().contains(right.asText());
-            case "!~" -> !left.asText().contains(right.asText());
+    private boolean compare(JsonNode left, JsonNode right, String cmp) {
+        if (left.isNumber() && right.isNumber()) return checkNumeric(left.doubleValue(), right.doubleValue(), cmp);
+        return checkString(left.textValue(), right.textValue(), cmp);
+    }
+
+    private boolean checkString(String l, String r, String cmp) {
+        return switch (cmp) {
+            case "=" -> l.equalsIgnoreCase(r);
+            case "==" -> Objects.equals(l, r);
+            case "!=" -> !l.equalsIgnoreCase(r);
+            case "!==" -> !Objects.equals(l, r);
+            case ">" -> l.compareTo(r) > 0;
+            case ">=" -> l.compareTo(r) >= 0;
+            case "<" -> l.compareTo(r) < 0;
+            case "<=" -> l.compareTo(r) <= 0;
+            case "~" -> l.toLowerCase().contains(r.toLowerCase());
+            case "!~" -> !l.toLowerCase().contains(r.toLowerCase());
             default -> false;
         };
     }
 
-    private JsonNode evalStmtValue(MapGrammerParser.StmtValueContext ctx, JsonNode current) {
+    private boolean checkNumeric(double l, double r, String cmp) {
+        return switch (cmp) {
+            case "=", "==" -> l == r;
+            case "!=", "!==" -> l != r;
+            case ">" -> l > r;
+            case ">=" -> l >= r;
+            case "<" -> l < r;
+            case "<=" -> l <= r;
+            case "~", "!~" -> throw new IllegalArgumentException("Numeric contains operators not supported");
+            default -> false;
+        };
+    }
+
+    private JsonNode readValue(MapGrammerParser.StmtValueContext ctx, JsonNode node) {
+        if ("@".equals(ctx.getText())) return node;
         if (ctx.STRING() != null) return TextNode.valueOf(stripQuotes(ctx.STRING().getText()));
         if (ctx.NUMBER() != null) return DoubleNode.valueOf(Double.parseDouble(ctx.NUMBER().getText()));
         if (ctx.NULL() != null) return NullNode.getInstance();
-        if (ctx.path() != null) return resolvePath(ctx.path(), current);
+        if (ctx.path() != null) return resolvePath(ctx.path(), node);
         return NullNode.getInstance();
     }
 
