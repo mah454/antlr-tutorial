@@ -24,7 +24,7 @@ public class EvalVisitor extends ClauseBaseVisitor<String> {
             for (ClauseParser.AndExprContext andCtx : ctx.andExpr()) {
                 orParts.add(visit(andCtx));
             }
-            return "{ $and: [ %s ] }".formatted(String.join(", ", orParts)).trim();
+            return "{ $or: [ %s ] }".formatted(String.join(", ", orParts)).trim();
         }
     }
 
