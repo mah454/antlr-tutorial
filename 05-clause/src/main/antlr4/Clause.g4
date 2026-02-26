@@ -71,7 +71,7 @@ NUMBER
 
 STRING
     : '"' (~["\\] | '\\' .)* '"'
-    | [a-zA-Z_][a-zA-Z0-9_]*   // allows unquoted Tehran
+    | [a-zA-Z_][a-zA-Z0-9_]*   // allows unquoted
     ;
 
 // whitespace
